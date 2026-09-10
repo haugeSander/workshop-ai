@@ -16,7 +16,9 @@
 import { alderVed } from "../../shared/alder.ts";
 import { readJson, updateJson } from "../../shared/jsonstore.ts";
 import type { Varselgrunn, Varselkanal, Varseltype } from "../../shared/varsel.ts";
-import { parseAktivitetskatalog } from "../../shared/senioraktivitet.ts";
+import { nesteGang, parseAktivitetskatalog } from "../../shared/senioraktivitet.ts";
+import type { Neste, Seniortilbud, Tilbud } from "../../shared/senioraktivitet.ts";
+import { hentPortalregistreringer } from "./innbyggerportal.ts";
 import { maskinportenHeader } from "../../digdir-mock/src/client.ts";
 import { fiksBaseUrl, fiksVarselToken, senioraktivitetFil } from "./config.ts";
 import { addRevisjon } from "./revisjon.ts";
@@ -173,6 +175,211 @@ export function finnVarselkandidater(
 export function byggVarseltekst(kommunenavn: string): string {
   return `Hei! ${kommunenavn} kommune har aktivitetstilbud for deg over 62 år. `
     + "Se hva som passer for deg på kommunens nettsider.";
+}
+
+/**
+ * Hjemmelen for et varsel innbyggeren selv har utløst.
+ *
+ * Et helt annet grunnlag enn `VARSELHJEMMEL`, og det er derfor det står som en
+ * egen konstant framfor som en gren i den. Hun har meldt seg på, og bekreftelsen
+ * og påminnelsen er en del av den tjenesten - ikke en henvendelse vi tok
+ * initiativ til. Skillet er hele grunnen til at varseltypen står i loggen.
+ */
+export const PAAMELDINGSHJEMMEL = {
+  behandlingsgrunnlag: "personvernforordningen artikkel 6 nr. 1 bokstav e",
+  suppleringsgrunnlag: "innbyggerens egen påmelding til tilbudet",
+  formaal: "Bekrefte og minne om et tilbud innbyggeren har meldt seg på"
+} as const;
+
+/** Ukedagen en ISO-dato faller på, på norsk. Til teksten, ikke til regning. */
+const UKEDAGSNAVN = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
+
+function ukedagFor(isodato: string): string {
+  const [aar, maaned, dag] = isodato.split("-").map(Number);
+  return UKEDAGSNAVN[new Date(Date.UTC(aar!, maaned! - 1, dag!)).getUTCDay()]!;
+}
+
+/**
+ * Teksten i en påminnelse. Under SMS-grensen, og med datoen i klartekst.
+ *
+ * «tirsdag 15. september kl. 10:00» framfor «2026-09-15T10:00»: det er en melding
+ * til et menneske, ikke et felt.
+ */
+export function byggPaaminnelsestekst(navn: string, neste: Neste): string {
+  const [, maaned, dag] = neste.dato.split("-");
+  const maaneder = ["januar", "februar", "mars", "april", "mai", "juni", "juli",
+    "august", "september", "oktober", "november", "desember"];
+  const naar = `${ukedagFor(neste.dato)} ${Number(dag)}. ${maaneder[Number(maaned) - 1]} `
+    + `kl. ${neste.fraKlokkeslett}`;
+  return `Hei! Påminnelse: ${navn} er ${naar}. Hilsen Ringerike kommune.`;
+}
+
+export function byggBekreftelsestekst(navn: string, neste: Neste | null): string {
+  if (!neste) return `Hei! Du er påmeldt ${navn}. Hilsen Ringerike kommune.`;
+  const [, maaned, dag] = neste.dato.split("-");
+  const maaneder = ["januar", "februar", "mars", "april", "mai", "juni", "juli",
+    "august", "september", "oktober", "november", "desember"];
+  return `Hei! Du er påmeldt ${navn}, ${ukedagFor(neste.dato)} `
+    + `${Number(dag)}. ${maaneder[Number(maaned) - 1]} kl. ${neste.fraKlokkeslett}. `
+    + "Hilsen Ringerike kommune.";
+}
+
+/**
+ * Ett varsel, gjennom ledgeren.
+ *
+ * Samme klemme-før-sending som batchjobben, av samme grunn: to samtidige kall
+ * skal ikke kunne se «ikke sendt ennå» begge to. En påmeldingsbekreftelse er den
+ * mest sannsynlige av dem alle til å bli dobbeltklikket.
+ *
+ * Svarer `null` når nøkkelen allerede fantes. Det er ikke en feil - det er
+ * ledgeren som gjør jobben sin.
+ */
+export async function sendEnkeltvarsel(
+  kandidat: Varselkandidat,
+  valg: { sporingsId: string; hjemmel: typeof VARSELHJEMMEL | typeof PAAMELDINGSHJEMMEL }
+): Promise<Utsending | null> {
+  const noekkel = utsendingsnoekkel(kandidat);
+  const klemt: boolean = await updateJson(
+    "utsendinger.json", [], (utsendinger: Utsending[]) => {
+      if (utsendinger.some((rad) => rad.noekkel === noekkel)) return false;
+      utsendinger.push({
+        noekkel,
+        varseltype: kandidat.varseltype,
+        personId: kandidat.personId,
+        ...(kandidat.tilbudId ? { tilbudId: kandidat.tilbudId } : {}),
+        ...(kandidat.dato ? { dato: kandidat.dato } : {}),
+        status: "paabegynt",
+        tidspunkt: new Date().toISOString()
+      });
+      return true;
+    });
+  if (!klemt) return null;
+
+  await addRevisjon({
+    sporingsId: valg.sporingsId,
+    handling: "VARSELUTVALG_UTFOERT",
+    ressurs: "varselutvalg",
+    formaal: valg.hjemmel.formaal,
+    gjaldt: kandidat.personId,
+    aktor: { type: "system", id: "sandbox-backend" },
+    grunnlag: {
+      type: "hjemmel",
+      behandlingsgrunnlag: valg.hjemmel.behandlingsgrunnlag,
+      suppleringsgrunnlag: valg.hjemmel.suppleringsgrunnlag,
+      varseltype: kandidat.varseltype,
+      ...(kandidat.tilbudId ? { tilbudId: kandidat.tilbudId } : {})
+    }
+  });
+
+  const svar = await sendVarsel(kandidat, valg.sporingsId);
+  return updateJson("utsendinger.json", [], (rader: Utsending[]) => {
+    const rad = rader.find((kandidatrad) => kandidatrad.noekkel === noekkel)!;
+    Object.assign(rad, svar.ok
+      ? {
+        status: svar.data?.kanal === "INGEN" ? "ikke_naadd" : "sendt",
+        ...(svar.data?.kanal ? { kanal: svar.data.kanal } : {}),
+        ...(svar.data?.grunn ? { grunn: svar.data.grunn } : {}),
+        ...(svar.data?.varselId ? { varselId: svar.data.varselId } : {})
+      }
+      : { status: "feilet", feil: svar.error.message },
+      { tidspunkt: new Date().toISOString() });
+    return rad;
+  });
+}
+
+/** Tilbudene som kan minnes om: de som har et tidspunkt å minne om. */
+export async function finnArrangementer(fraDato: string): Promise<{
+  tilbudId: string; navn: string; aktivitetId: string; neste: Neste | null;
+}[]> {
+  const katalog = parseAktivitetskatalog(await readJson(senioraktivitetFil));
+  return katalog.aktiviteter
+    .flatMap((aktivitet) => aktivitet.tilbud.map((tilbud) => ({ aktivitet, tilbud })))
+    .filter(({ tilbud }) => tilbud.tidspunkter.length > 0)
+    .map(({ aktivitet, tilbud }) => ({
+      tilbudId: tilbud.tilbudId,
+      aktivitetId: aktivitet.aktivitetId,
+      navn: aktivitet.navn,
+      neste: nesteGang(tilbud, fraDato)
+    }))
+    // Sortert på når de går, så nedtrekket leser som en kalender og ikke som en
+    // filrekkefølge. De uten neste gang havner sist.
+    .sort((a, b) => (a.neste?.dato ?? "9999").localeCompare(b.neste?.dato ?? "9999")
+      || a.tilbudId.localeCompare(b.tilbudId, "nb"));
+}
+
+export type Paaminnelsesresultat = {
+  hjemmel: typeof PAAMELDINGSHJEMMEL;
+  tilbudId: string;
+  navn: string;
+  neste: Neste | null;
+  paameldte: number;
+  perKanal: Record<string, number>;
+  alleredeSendt: number;
+  utsendinger: Utsending[];
+};
+
+/**
+ * Minner alle påmeldte om ett tilbud.
+ *
+ * `fraDato` er der for demoens skyld: den lar deg simulere at tiden nærmer seg
+ * uten å stille klokken. Den er også det som gjør ledgernøkkelen forskjellig fra
+ * uke til uke - nøkkelen bærer datoen `nesteGang` kom fram til, så neste ukes
+ * påminnelse er en ny rad og ikke en kvalt duplikat.
+ *
+ * Et tilbud uten neste gang gir ingen påminnelse, og det er et svar: sju av ti
+ * tilbud i katalogen hadde ingen `tidspunkter` i det hele tatt før datoene kom.
+ */
+export async function kjoerPaaminnelse(
+  tilstand: State,
+  valg: { tilbudId: string; sporingsId: string; fraDato?: string }
+): Promise<Paaminnelsesresultat> {
+  const fraDato = valg.fraDato || new Date().toISOString().slice(0, 10);
+  const arrangementer = await finnArrangementer(fraDato);
+  const arrangement = arrangementer.find((rad) => rad.tilbudId === valg.tilbudId);
+  if (!arrangement) {
+    throw new Error(`Tilbudet ${valg.tilbudId} finnes ikke, eller har ingen tidspunkter.`);
+  }
+
+  const paameldte: string[] = [];
+  for (const person of tilstand.personer as any[]) {
+    const registreringer = await hentPortalregistreringer(person.personId);
+    if (registreringer.some((rad) => rad.tilbudId === valg.tilbudId)) {
+      paameldte.push(person.personId);
+    }
+  }
+
+  const perKanal: Record<string, number> = {};
+  const utsendinger: Utsending[] = [];
+  let alleredeSendt = 0;
+  if (arrangement.neste) {
+    const tekst = byggPaaminnelsestekst(arrangement.navn, arrangement.neste);
+    for (const personId of paameldte) {
+      const person = (tilstand.personer as any[]).find((rad) => rad.personId === personId);
+      if (!person?.syntetiskFodselsnummer) continue;
+      const rad = await sendEnkeltvarsel({
+        personId,
+        fnr: person.syntetiskFodselsnummer,
+        varseltype: "paaminnelse",
+        tilbudId: valg.tilbudId,
+        dato: arrangement.neste.dato,
+        tekst
+      }, { sporingsId: valg.sporingsId, hjemmel: PAAMELDINGSHJEMMEL });
+      if (!rad) { alleredeSendt += 1; continue; }
+      perKanal[rad.kanal ?? "INGEN"] = (perKanal[rad.kanal ?? "INGEN"] ?? 0) + 1;
+      utsendinger.push(rad);
+    }
+  }
+
+  return {
+    hjemmel: PAAMELDINGSHJEMMEL,
+    tilbudId: arrangement.tilbudId,
+    navn: arrangement.navn,
+    neste: arrangement.neste,
+    paameldte: paameldte.length,
+    perKanal,
+    alleredeSendt,
+    utsendinger
+  };
 }
 
 export type Varslingsresultat = {

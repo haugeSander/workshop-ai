@@ -527,6 +527,41 @@ paths:
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
   /fiks/varsler:
+    get:
+      summary: Utboksen - varslene som er forsøkt sendt
+      security:
+        - maskinporten: [ks:fiks:varsel]
+      description: >
+        Radene bærer teksten, fordi det er en beskjed kommunen selv har skrevet -
+        men aldri telefonnummeret. Også forsøk som endte i `kanal: INGEN` står her:
+        «vi prøvde og hun kunne ikke nås» er forskjellig fra «vi prøvde aldri».
+        Nyeste først.
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Varseltype"
+      responses:
+        "200":
+          description: Utboksen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  varsler:
+                    type: array
+                    items:
+                      type: object
+                  antall:
+                    type: integer
+                  syntetisk:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
     post:
       summary: Send et varsel til en innbygger
       security:
@@ -1732,7 +1767,7 @@ components:
         Hva varselet er. Typen avgjør ikke kanalen, men den står i loggen: «hvem
         fikk et uanmodet varsel» og «hvem ble minnet på noe hun meldte seg på» er
         to spørsmål med to hjemler.
-      enum: [tilbud-finnes, paaminnelse, avlysning]
+      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning]
     Varselgrunn:
       type: string
       description: >

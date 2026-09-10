@@ -1416,6 +1416,163 @@ paths:
               schema:
                 $ref: "#/components/schemas/Feil"
 
+  /api/varsel/seniorsirkel/utsendinger:
+    get:
+      summary: Ledgeren over sendte varsler
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Historikken, slik den står. Ruten **utleder ikke** kandidater: å lese
+        befolkningen for å avgjøre hvem som skal kontaktes er behandlingen som
+        trenger en hjemmel, og den føres hver gang den skjer. Å åpne en statusside
+        er ikke den behandlingen. Vil du ha kandidatlisten, kall
+        `kjor?torrkjor=true` - den logger, som den skal.
+      responses:
+        "200":
+          description: Ledgeren, nyeste først
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hjemmel:
+                    type: object
+                  utsendinger:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Utsending"
+                  antall:
+                    type: integer
+                  syntetisk:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
+  /api/varsel/seniorsirkel/arrangementer:
+    get:
+      summary: Arrangementene det går an å minne om
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Tilbudene som har et tidspunkt, med `neste` regnet ut av `nesteGang`. En
+        oppgitt `dato` i katalogen er forekomsten og vinner over gjentakelsen;
+        er den passert, faller svaret tilbake på ukedagene hvis tilbudet har noen.
+        `neste: null` betyr at tilbudet ikke har en neste gang - et enkeltarrangement
+        som er over, eller et kurs uten fast tidspunkt.
+      parameters:
+        - name: fraDato
+          in: query
+          required: false
+          description: Regn fra denne datoen framfor fra i dag. Til å simulere.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Arrangementene, sortert på når de går
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fraDato:
+                    type: string
+                  arrangementer:
+                    type: array
+                    items:
+                      type: object
+                  syntetisk:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
+  /api/varsel/seniorsirkel/paaminnelse:
+    post:
+      summary: Minn alle påmeldte om ett arrangement
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Kommunens jobb, ikke innbyggerens - samme scope som batchvarslingen.
+
+        **Hjemmelen er en annen enn for det uanmodede varselet.** Innbyggeren har
+        selv meldt seg på, og påminnelsen er en del av tjenesten hun ba om. Det
+        står i `hjemmel` i svaret og i revisjonsloggen, og varseltypen skiller de
+        to i ettertid.
+
+        `fraDato` lar en demo simulere at tiden nærmer seg uten å stille klokken.
+        Ledgernøkkelen bærer datoen `nesteGang` kom fram til, så neste ukes
+        påminnelse blir en ny rad framfor en kvalt duplikat.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tilbudId]
+              properties:
+                tilbudId:
+                  type: string
+                fraDato:
+                  type: string
+                  format: date
+      responses:
+        "200":
+          description: Påminnelsen er kjørt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hjemmel:
+                    type: object
+                  tilbudId:
+                    type: string
+                  navn:
+                    type: string
+                  neste:
+                    type: object
+                    nullable: true
+                  paameldte:
+                    type: integer
+                  perKanal:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  alleredeSendt:
+                    type: integer
+                  utsendinger:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Utsending"
+                  syntetisk:
+                    type: boolean
+        "400":
+          description: Manglende tilbudId, eller et tilbud uten tidspunkter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
   /api/varsel/seniorsirkel/kjor:
     post:
       summary: Kjør den utgående varslingen om seniortilbud
@@ -2588,7 +2745,7 @@ components:
       enum: [SMS, EPOST, INGEN]
     Varseltype:
       type: string
-      enum: [tilbud-finnes, paaminnelse, avlysning]
+      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning]
     Varselgrunn:
       type: string
       description: Bare satt når kanalen er INGEN.

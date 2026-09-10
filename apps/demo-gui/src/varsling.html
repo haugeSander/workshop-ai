@@ -126,6 +126,40 @@
         </div>
       </section>
 
+      <section class="v-section">
+        <h2 class="ds-heading" data-size="sm">Minn de påmeldte på et arrangement</h2>
+        <p class="ds-paragraph" data-size="sm" data-variant="long">
+          Går til dem som har meldt seg på i innbyggerportalen. Hjemmelen er en annen
+          enn for varselet over: her har innbyggeren selv bedt om tilbudet, og
+          påminnelsen er en del av det. <code>Simuler fra</code> lar deg late som tiden
+          nærmer seg uten å stille klokken.
+        </p>
+        <div class="v-filter">
+          <div class="ds-field">
+            <label class="ds-label" for="arrangement">Arrangement</label>
+            <select class="ds-input" id="arrangement">
+              <option value="">Laster…</option>
+            </select>
+            <p class="ds-paragraph" data-size="xs" data-field="description" id="arrangementhint">
+              Bare tilbud som har et tidspunkt å minne om.
+            </p>
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="fraDato">Simuler fra</label>
+            <input class="ds-input" type="date" id="fraDato" />
+            <p class="ds-paragraph" data-size="xs" data-field="description">
+              Blank betyr i dag.
+            </p>
+          </div>
+        </div>
+        <div class="v-knapper">
+          <button class="ds-button" type="button" data-variant="secondary" id="knappPaaminn">
+            Send påminnelse
+          </button>
+        </div>
+        <div class="ds-alert" id="paaminnelsemelding" hidden aria-live="polite"></div>
+      </section>
+
       <section class="v-section" id="loggSeksjon" hidden>
         <h2 class="ds-heading" data-size="sm">Logg over sendte varsler</h2>
         <p class="ds-paragraph" data-size="sm" data-variant="long">

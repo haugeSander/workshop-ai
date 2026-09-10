@@ -403,8 +403,84 @@ async function kjoer(torrkjoer: boolean): Promise<void> {
   }
 }
 
+type Arrangement = {
+  tilbudId: string;
+  navn: string;
+  neste: { dato: string; fraKlokkeslett: string } | null;
+};
+
+/**
+ * Arrangementene i nedtrekket, med neste gang skrevet ut.
+ *
+ * Et tilbud uten neste gang blir stående, men merket - det er en opplysning
+ * («dette kurset er over») og ikke noe å skjule. Den kan bare ikke velges, siden
+ * det ikke finnes noe å minne om.
+ */
+async function hentArrangementer(): Promise<void> {
+  const fraDato = krevEl<HTMLInputElement>("fraDato").value;
+  const token = await maskinportenToken("sandbox-backend", VARSLINGSSCOPE);
+  const svar = await fetch(
+    `${backendBase}/api/varsel/seniorsirkel/arrangementer${fraDato ? `?fraDato=${fraDato}` : ""}`,
+    { headers: { Authorization: `Bearer ${token}` } });
+  if (!svar.ok) throw new Error(`Tjenesten svarte ${svar.status}.`);
+  const data = await svar.json() as { arrangementer: Arrangement[] };
+  const velger = krevEl<HTMLSelectElement>("arrangement");
+  const valgt = velger.value;
+  velger.replaceChildren();
+  for (const rad of data.arrangementer) {
+    const valg = document.createElement("option");
+    valg.value = rad.tilbudId;
+    valg.textContent = rad.neste
+      ? `${rad.navn} - ${rad.neste.dato} kl. ${rad.neste.fraKlokkeslett}`
+      : `${rad.navn} - ingen neste gang`;
+    valg.disabled = rad.neste === null;
+    velger.append(valg);
+  }
+  if ([...velger.options].some((valg) => valg.value === valgt)) velger.value = valgt;
+}
+
+async function sendPaaminnelse(): Promise<void> {
+  const boks = krevEl("paaminnelsemelding");
+  const tilbudId = krevEl<HTMLSelectElement>("arrangement").value;
+  const fraDato = krevEl<HTMLInputElement>("fraDato").value;
+  if (!tilbudId) return;
+  visSpinner(true);
+  try {
+    const token = await maskinportenToken("sandbox-backend", VARSLINGSSCOPE);
+    const svar = await fetch(`${backendBase}/api/varsel/seniorsirkel/paaminnelse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tilbudId, ...(fraDato ? { fraDato } : {}) })
+    });
+    const data = await svar.json();
+    if (!svar.ok) throw new Error(data.feil || `Tjenesten svarte ${svar.status}.`);
+    boks.hidden = false;
+    if (data.paameldte === 0) {
+      // Null påmeldte er ikke en feil. Det er svaret, og det peker på hva man
+      // gjør nå: meld noen på i innbyggerportalen først.
+      boks.dataset.color = "warning";
+      boks.textContent = `Ingen er påmeldt ${data.navn} ennå. `
+        + "Meld på en innbygger i innbyggerportalen først.";
+    } else {
+      boks.dataset.color = "success";
+      const sendt = data.utsendinger.filter((rad: Utsending) => rad.status === "sendt").length;
+      boks.textContent = `${data.navn}, ${data.neste?.dato ?? "uten dato"}: `
+        + `${data.paameldte} påmeldt, ${sendt} varslet`
+        + (data.alleredeSendt > 0 ? `, ${data.alleredeSendt} minnet på fra før.` : ".");
+    }
+    await hentLogg();
+  } catch (feil) {
+    boks.hidden = false;
+    boks.dataset.color = "danger";
+    boks.textContent = feilmelding(feil);
+  } finally {
+    visSpinner(false);
+  }
+}
+
 async function start(): Promise<void> {
   try {
+    await hentArrangementer();
     await hentLogg();
     if (logg.length > 0) {
       visMelding(`Loggen har ${logg.length} varsler fra tidligere kjøringer.`, "info");
@@ -414,6 +490,8 @@ async function start(): Promise<void> {
   }
 }
 
+krevEl("fraDato").addEventListener("change", () => void hentArrangementer());
+krevEl("knappPaaminn").addEventListener("click", () => void sendPaaminnelse());
 krevEl("personfilter").addEventListener("change", renderLogg);
 krevEl("utfallfilter").addEventListener("change", renderLogg);
 krevEl("knappTorr").addEventListener("click", () => void kjoer(true));

@@ -23,7 +23,16 @@ import {
   representantPider
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
-import { kjoerVarsling, lesUtsendinger, VARSELHJEMMEL } from "./varsling.ts";
+import {
+  byggBekreftelsestekst,
+  finnArrangementer,
+  kjoerPaaminnelse,
+  kjoerVarsling,
+  lesUtsendinger,
+  PAAMELDINGSHJEMMEL,
+  sendEnkeltvarsel,
+  VARSELHJEMMEL
+} from "./varsling.ts";
 import { routeOverview } from "../../shared/openapi.ts";
 import {
   fjernPortalregistrering,
@@ -624,10 +633,90 @@ const ruter: Rute[] = [
         antall: opprettet.length,
         aktor: aktorFor(kaller, person.personId)
       });
+      /*
+       * Bekreftelsen. Best effort, som Fiks-oppgaven og SvarUt-kvitteringen ved
+       * en SUBMIT: påmeldingen er allerede lagret, og innbyggeren skal ikke måtte
+       * melde seg på igjen fordi en SMS ikke gikk. Utfallet blir stående i
+       * ledgeren, så «hun fikk ingen bekreftelse» er et spørsmål med et svar.
+       *
+       * Hjemmelen er en annen enn for det uanmodede varselet: hun har nettopp
+       * bedt om dette. Derfor PAAMELDINGSHJEMMEL og ikke VARSELHJEMMEL.
+       */
+      const bekreftelser = [];
+      for (const registrering of opprettet) {
+        const arrangementer = await finnArrangementer(new Date().toISOString().slice(0, 10));
+        const neste = arrangementer.find((rad) => rad.tilbudId === registrering.tilbudId)?.neste
+          ?? null;
+        const rad = await sendEnkeltvarsel({
+          personId: person.personId,
+          fnr: (person as any).syntetiskFodselsnummer,
+          varseltype: "paamelding-bekreftet",
+          tilbudId: registrering.tilbudId,
+          ...(neste ? { dato: neste.dato } : {}),
+          tekst: byggBekreftelsestekst(registrering.navn, neste)
+        }, { sporingsId, hjemmel: PAAMELDINGSHJEMMEL });
+        if (rad) bekreftelser.push({ tilbudId: registrering.tilbudId, kanal: rad.kanal, grunn: rad.grunn });
+      }
+
       jsonResponse(response, 201, {
         registreringer: opprettet,
+        // Kanalen er med i svaret, så portalen kan si «bekreftelse sendt på SMS»
+        // eller «du er reservert, så vi kan ikke minne deg på» der og da - framfor
+        // at innbyggeren oppdager det ved at ingenting kommer.
+        bekreftelser,
         sporingsId,
         mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /*
+     * Påminnelsen om ett arrangement, til alle som er påmeldt.
+     *
+     * Kommunens jobb, ikke innbyggerens: samme `bred` og samme scope som
+     * batchvarslingen. `fraDato` lar en demo simulere at tiden nærmer seg uten å
+     * stille klokken - og fordi ledgernøkkelen bærer datoen `nesteGang` kom fram
+     * til, er neste ukes påminnelse en ny rad framfor en kvalt duplikat.
+     */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/paaminnelse",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ request, response, tilstand, url }) => {
+      const body = await readBodyOnce(request);
+      const tilbudId = body?.tilbudId || url.searchParams.get("tilbudId");
+      if (!tilbudId) {
+        throw new HttpError("tilbudId er påkrevd.", 400);
+      }
+      try {
+        jsonResponse(response, 200, {
+          ...(await kjoerPaaminnelse(tilstand, {
+            tilbudId: String(tilbudId),
+            sporingsId: getSporingsId(url),
+            ...(body?.fraDato ? { fraDato: String(body.fraDato) } : {})
+          })),
+          syntetisk: true
+        });
+      } catch (feil) {
+        throw new HttpError(feil instanceof Error ? feil.message : "Påminnelsen feilet.", 400);
+      }
+    }
+  },
+  {
+    /** Arrangementene som kan minnes om, med neste gang. Til nedtrekket. */
+    metode: "GET",
+    sti: "/api/varsel/seniorsirkel/arrangementer",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response, url }) => {
+      const fraDato = url.searchParams.get("fraDato")
+        || new Date().toISOString().slice(0, 10);
+      jsonResponse(response, 200, {
+        fraDato,
+        arrangementer: await finnArrangementer(fraDato),
         syntetisk: true
       });
     }

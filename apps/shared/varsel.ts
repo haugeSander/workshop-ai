@@ -32,8 +32,17 @@ export type Varselkanal = (typeof VARSELKANALER)[number];
  * «hvem fikk et uanmodet varsel om et tilbud» og «hvem ble minnet på noe hun selv
  * meldte seg på» er to spørsmål med to hjemler, og en logg som ikke skiller dem
  * kan ikke svare på noen av dem.
+ *
+ * `paamelding-bekreftet` er den tredje varianten: den er *bedt om*. Innbyggeren
+ * meldte seg nettopp på, og bekreftelsen er en del av tjenesten hun ba om - ikke
+ * en henvendelse vi tok initiativ til.
  */
-export const VARSELTYPER = ["tilbud-finnes", "paaminnelse", "avlysning"] as const;
+export const VARSELTYPER = [
+  "tilbud-finnes",
+  "paamelding-bekreftet",
+  "paaminnelse",
+  "avlysning"
+] as const;
 export type Varseltype = (typeof VARSELTYPER)[number];
 
 /**
