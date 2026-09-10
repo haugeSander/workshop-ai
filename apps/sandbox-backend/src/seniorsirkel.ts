@@ -231,6 +231,104 @@ export function byggSeniorprofil(
 }
 
 /**
+ * Innbyggerens eget svar på ett felt, uansett hvordan prosessen har delt opp
+ * spørsmålene sine.
+ *
+ * **Feltnavnet er kontrakten, ikke steg-id-en.** Et steg som *heter* `interesser`
+ * teller, og det gjør også et felt som heter `interesser` inne i svaret på et steg
+ * som heter noe annet. Alternativet var å navngi stegene i én bestemt prosess her,
+ * og process-agent har alt vist hva det koster - se de hardkodede steg-id-ene for
+ * `fartsdempende-tiltak` i AGENTS.md.
+ */
+function svarFelt(oektsvar: unknown, felt: string): string | null {
+  if (!oektsvar || typeof oektsvar !== "object") return null;
+  const svar = oektsvar as Record<string, unknown>;
+  if (typeof svar[felt] === "string") return svar[felt] as string;
+  for (const verdi of Object.values(svar)) {
+    if (verdi && typeof verdi === "object") {
+      const inni = (verdi as Record<string, unknown>)[felt];
+      if (typeof inni === "string") return inni;
+    }
+  }
+  return null;
+}
+
+/**
+ * Interessegruppene, som kommaliste.
+ *
+ * Vakten mot `{svar.…}` er ikke teoretisk: et `DATA_FETCH`-steg som peker på et
+ * spørsmål uten svar lar plassholderen stå i URL-en - se `replaceParametere` i
+ * prosess.ts og kommentaren der. Uten dette ble den lest som et gruppenavn, og
+ * innbyggeren fikk «interessegruppen «{svar.interesser}» finnes ikke», som leser
+ * som hennes skrivefeil.
+ */
+function lesInteresser(raa: string | null): string[] {
+  if (!raa) return [];
+  krev(!raa.includes("{svar."),
+    `spørringen inneholder plassholderen ${raa}. Steget den peker på er ikke besvart.`);
+  return raa.split(",").map((verdi) => verdi.trim()).filter(Boolean);
+}
+
+/**
+ * Et tilretteleggingsbehov, i tre tilstander.
+ *
+ * Ja og nei er de to som svarer; alt annet - «Vet ikke» fra et `ja-nei`-felt, en
+ * tom streng, en parameter som ikke står der - utelates, og da sier ikke profilen
+ * noe om behovet. Det er den samme regelen katalogen følger for tilgjengelighet,
+ * og den må gjelde i begge ender: en «Vet ikke» lest som nei ville skjult
+ * ingenting, mens en lest som ja ville filtrert bort tilbud innbyggeren aldri ba
+ * om å slippe.
+ *
+ * To vokabularer, fordi det er to kilder: spørringen er maskin (`true`/`false`),
+ * mens `ja-nei`-feltet er det innbyggeren klikket på.
+ */
+function lesBehov(raa: string | null): boolean | undefined {
+  const verdi = (raa ?? "").trim().toLowerCase();
+  if (verdi === "true" || verdi === "ja") return true;
+  if (verdi === "false" || verdi === "nei") return false;
+  return undefined;
+}
+
+/**
+ * Én profil, uansett hvilken vei innbyggeren kom inn.
+ *
+ * Portalen kaller ruten med spørreparametere, og prosessmotoren kaller den med en
+ * økt bak seg. De to skal oppføre seg likt, og den eneste måten å love det på er
+ * at det er én funksjon og ikke to som skal holde tritt. Spørringen vinner der
+ * begge svarer: motoren setter selv inn `{svar.<steg>}` i `api`-strengen, så en
+ * verdi i spørringen er noe kalleren har sagt uttrykkelig.
+ *
+ * Kommunen og fødselsdatoen står ikke blant kildene, og det er med vilje. De er
+ * registeropplysninger, og en kaller som kunne oppgi kommunen sin selv hadde gjort
+ * det harde kravet i `rangerTilbud` til en innstilling.
+ */
+export function byggProfilFraKilder(
+  kilder: {
+    kommunenummer: string;
+    foedselsdato?: string;
+    referansedato?: string;
+    spoerring?: { grupper?: string | null; rullestol?: string | null; teleslynge?: string | null };
+    oektsvar?: unknown;
+  },
+  grupper: Interessegruppe[]
+): Seniorprofil {
+  const spoerring = kilder.spoerring ?? {};
+  const fra = (navn: "grupper" | "rullestol" | "teleslynge", felt: string) =>
+    spoerring[navn] ?? svarFelt(kilder.oektsvar, felt);
+
+  const rullestol = lesBehov(fra("rullestol", "rullestol"));
+  const teleslynge = lesBehov(fra("teleslynge", "teleslynge"));
+  return byggSeniorprofil({
+    kommunenummer: kilder.kommunenummer,
+    ...(kilder.foedselsdato === undefined ? {} : { foedselsdato: kilder.foedselsdato }),
+    ...(kilder.referansedato === undefined ? {} : { referansedato: kilder.referansedato }),
+    interesser: lesInteresser(fra("grupper", "interesser")),
+    ...(rullestol === undefined ? {} : { trengerRullestoladkomst: rullestol }),
+    ...(teleslynge === undefined ? {} : { trengerTeleslynge: teleslynge })
+  }, grupper);
+}
+
+/**
  * Målgruppekoden aktiviteten fortjener - én, den beste av målgruppene sine.
  *
  * Rekkefølgen under er hele regelen: et treff slår «gjelder alle», som slår

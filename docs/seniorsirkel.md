@@ -202,6 +202,42 @@ Alderen regnes med `alderVed` mot `satser.gjelderFra` - den samme datoen vilkår
 slik at katalogens målgrupper og retten til ordningen måler mot samme dag. Ingen
 `new Date()`; se datoavsnittet i [`AGENTS.md`](../AGENTS.md).
 
+## Ruten
+
+```
+GET /api/seniorsirkel/forslag?personId=person-401&grupper=friluft,kultur&rullestol=true
+```
+
+Katalogoppføring i `apps/sandbox-backend/src/ressurser.ts`, så den er samtidig et
+HTTP-endepunkt og et gyldig `DATA_FETCH`-mål. `tilgang` er egne-data: katalogen er
+offentlig, men alderen, bostedskommunen og tilretteleggingsbehovet i svaret er
+innbyggerens. Den krever **ikke** samtykke - samtykket i prosessen gjelder
+kontaktopplysningene, som denne ruten ikke rører.
+
+**Kommunen og alderen leses fra registeret, aldri fra spørringen.** En kaller som
+kunne oppgi kommunen sin selv, hadde gjort det harde kravet til en innstilling.
+
+| Parameter | |
+|---|---|
+| `personId` | Påkrevd. Uten den vet ruten verken hvilken kommune eller hvilken alder |
+| `grupper` | Kommaliste av gruppeverdier. En ukjent verdi gir 400, ikke et tomt svar |
+| `rullestol`, `teleslynge` | `true`/`false`. **Utelatt er den tredje tilstanden** |
+
+Portalen kaller ruten med spørreparametere; prosessmotoren kaller den med en økt bak
+seg og kan la svarene komme derfra. De to leses av den samme funksjonen -
+`byggProfilFraKilder` - framfor av to som skal oppføre seg likt, og spørringen vinner
+der begge svarer. Fra økten er det **feltnavnet** som teller og ikke steg-id-en: et
+steg som heter `interesser` duger, og det gjør også et felt som heter `interesser`
+inne i svaret på et steg som heter noe annet.
+
+Et `ja-nei`-felt har tre verdier, og «Vet ikke» blir til ikke oppgitt - samme regel
+som katalogen følger. Peker et `DATA_FETCH`-steg på et spørsmål som ikke er besvart,
+står plassholderen igjen i URL-en; ruten sier da at steget ikke er besvart, framfor å
+lese `{svar.interesser}` som et gruppenavn og skylde på innbyggeren.
+
+`pnpm test:kontrakt` treffer ruten seks ganger, blant annet med en innbyggers token
+mot en annens profil - det er egne-data-vakten, og ingenting annet pinner den.
+
 ## Hvilken fil som leses
 
 `SENIORAKTIVITET_DATA_FILE`, med `senioraktiviteter.json` som standard.

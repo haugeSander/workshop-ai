@@ -32,6 +32,7 @@ import { parseAktivitetskatalog } from "../apps/shared/senioraktivitet.ts";
 import type { Aktivitetskatalog, Seniortilbud } from "../apps/shared/senioraktivitet.ts";
 import {
   BEGRUNNELSESKODER,
+  byggProfilFraKilder,
   byggSeniorprofil,
   erHardtKrav,
   parseInteressegrupper,
@@ -132,6 +133,75 @@ kaster("et kommunenummer som ikke er fire siffer kastes",
 kaster("en gruppe uten kategorier kastes",
   () => parseInteressegrupper({ grupper: [{ verdi: "tom", label: "Tom", kategorier: [] }] }),
   "valgmulighet uten innhold");
+
+// --- 1b. De to veiene inn ---------------------------------------------------
+
+/*
+ * Portalen kaller ruten med spørreparametere; prosessmotoren kaller den med en økt
+ * bak seg. «Må oppføre seg likt begge veier» er en påstand, og den eneste måten å
+ * holde den på er at det er én funksjon og ikke to - så det er dette som pinnes.
+ *
+ * Feltnavnene er kontrakten, ikke steg-id-ene: økten kan svare med et steg som
+ * heter `interesser`, eller med et felt som heter det inne i et steg som heter noe
+ * annet. Begge formene finnes i motoren i dag (replaceParametere i prosess.ts).
+ */
+const REGISTER = {
+  kommunenummer: RINGERIKE,
+  foedselsdato: "1956-03-04",
+  referansedato: "2026-08-01"
+};
+const fraSpoerring = byggProfilFraKilder({
+  ...REGISTER,
+  spoerring: { grupper: "friluft,kultur", rullestol: "true", teleslynge: "false" }
+}, grupper);
+for (const [navn, oektsvar] of [
+  ["steg som heter feltet", {
+    interesser: "friluft,kultur", rullestol: "Ja", teleslynge: "Nei"
+  }],
+  ["felter inne i et steg", {
+    "hva-liker-du": { interesser: "friluft,kultur" },
+    tilgjengelighet: { rullestol: "Ja", teleslynge: "Nei" }
+  }]
+] as const) {
+  check(`økten gir samme profil som spørringen (${navn})`,
+    JSON.stringify(byggProfilFraKilder({ ...REGISTER, oektsvar }, grupper))
+    === JSON.stringify(fraSpoerring),
+    JSON.stringify(byggProfilFraKilder({ ...REGISTER, oektsvar }, grupper)));
+}
+
+// Spørringen vinner der begge svarer: motoren setter selv inn {svar.<steg>} i
+// api-strengen, så en verdi i spørringen er noe kalleren har sagt uttrykkelig.
+check("spørringen vinner over økten",
+  byggProfilFraKilder({
+    ...REGISTER,
+    spoerring: { grupper: "kultur" },
+    oektsvar: { interesser: "friluft" }
+  }, grupper).interesser.join(",") === "kultur");
+
+/*
+ * «Vet ikke» er den tredje tilstanden i et ja-nei-felt, og den må komme ut som
+ * ikke oppgitt. Lest som nei hadde den skjult ingenting; lest som ja hadde den
+ * filtrert bort tilbud innbyggeren aldri ba om å slippe.
+ */
+for (const [navn, verdi] of [["Vet ikke", "Vet ikke"], ["tom streng", ""],
+  ["utelatt", null]] as const) {
+  const p = byggProfilFraKilder({
+    ...REGISTER, spoerring: { rullestol: verdi }
+  }, grupper);
+  check(`«${navn}» er ikke oppgitt, verken ja eller nei`,
+    !("trengerRullestoladkomst" in p), JSON.stringify(p));
+}
+check("nei er oppgitt, og ikke det samme som utelatt",
+  byggProfilFraKilder({ ...REGISTER, spoerring: { rullestol: "Nei" } }, grupper)
+    .trengerRullestoladkomst === false);
+
+// Et DATA_FETCH-steg som peker på et ubesvart spørsmål lar plassholderen stå.
+// Uten vakten leses den som et gruppenavn, og feilmeldingen skylder på innbyggeren.
+kaster("en uerstattet {svar.…} navngis som det den er",
+  () => byggProfilFraKilder({
+    ...REGISTER, spoerring: { grupper: "{svar.interesser}" }
+  }, grupper),
+  "ikke besvart");
 
 // --- 2. Interesse og målgruppe ----------------------------------------------
 

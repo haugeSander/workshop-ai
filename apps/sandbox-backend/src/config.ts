@@ -19,6 +19,15 @@ export const pasientjournalBaseUrl =
 export const politiattestBaseUrl =
   process.env.POLITIATTEST_BASE_URL || "http://politiattest-mock:8088";
 
+/**
+ * Aktivitetskatalogen for seniorsirkelen. Samme mønster som MATRIKKEL_DATA_FILE i
+ * matrikkel-mock: filnavnet er en innstilling så en kommune kan legge inn sin egen
+ * katalog uten en kodeendring. Navnet, ikke stien - `readJson` leter i `state/`
+ * før `data/`, og det er den overstyringen docs/seniorsirkel.md peker på.
+ */
+export const senioraktivitetFil =
+  process.env.SENIORAKTIVITET_DATA_FILE || "senioraktiviteter.json";
+
 // Synthetic role id. In real Fiks this identifies the municipality's role.
 export const fiksRolleId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 

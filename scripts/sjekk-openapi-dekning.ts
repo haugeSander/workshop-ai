@@ -377,6 +377,11 @@ const tjenester: Tjeneste[] = [
         skjema: "Forsendelsesstatus",
         verdier: async () =>
           (await import("../apps/fiks-simulator/src/forsendelse.ts")).FORSENDELSESSTATUSER
+      },
+      {
+        skjema: "Begrunnelseskode",
+        verdier: async () =>
+          (await import("../apps/sandbox-backend/src/seniorsirkel.ts")).BEGRUNNELSESKODER
       }
     ],
     // Kodeverk som bare finnes i dataene, ikke som en konstant i koden. Sjekk 7

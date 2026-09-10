@@ -320,6 +320,36 @@ async function staticLookups() {
   await call("ukjent-endepunkt", "/api/finnes-ikke");
 }
 
+/*
+ * Seniorsirkelens forslagsrute, over HTTP.
+ *
+ * Skåringen selv er pinnet som rene funksjoner i test-seniorsirkel.ts. Det som
+ * bare finnes her er sømmen: at ruten er egne-data og ikke åpen, at personId er
+ * påkrevd, og at kommunen og alderen kommer fra registeret framfor fra spørringen.
+ * Den første av dem er den plan-notatet peker på - test:parametere leser ikke
+ * sandbox-backend i det hele tatt, så `valider` i ressurser.ts er eneste vakt.
+ */
+async function seniorsirkelForslag() {
+  // person-401 er 70 år i Ringerike. Katalogen gjelder 3305, så dette er ja-saken.
+  await call("seniorforslag", "/api/seniorsirkel/forslag?personId=person-401&grupper=friluft",
+    { form: 3 });
+  // Rullestolbehovet er det ene harde kravet en innbygger selv kan utløse. Den
+  // utelukkede raden blir stående med koden sin framfor å forsvinne.
+  await call("seniorforslag-rullestol",
+    "/api/seniorsirkel/forslag?personId=person-401&grupper=friluft&rullestol=true", { form: 3 });
+  // person-001 bor i Bergen. Katalogen er Ringerikes, så hvert tilbud i den er
+  // utelukket av samme grunn - og listen er tom med en forklaring, ikke uten.
+  await call("seniorforslag-annen-kommune", "/api/seniorsirkel/forslag?personId=person-001",
+    { form: 3 });
+  await call("seniorforslag-uten-personid", "/api/seniorsirkel/forslag");
+  await call("seniorforslag-ukjent-gruppe",
+    "/api/seniorsirkel/forslag?personId=person-401&grupper=frilufft");
+  // Egne-data: en innbygger med gyldig token for seg selv får ikke lese en annens
+  // profil. Uten dette ville `tilgang: "aapen"` bestått hele dumpen.
+  await call("seniorforslag-annens-profil", "/api/seniorsirkel/forslag?personId=person-401",
+    { somPerson: "person-001" });
+}
+
 // Foreldrebetaling: INFO -> husstand -> samtykke -> inntekt -> SJEKK.
 // Stops before SUMMARY, which would require ai-gateway.
 async function foreldrebetalingsflyt(
@@ -1069,6 +1099,7 @@ async function run() {
     ]);
 
     await staticLookups();
+    await seniorsirkelForslag();
     await foreldrebetalingsflyt("redusert-foreldrebetaling-barnehage", "barnehage");
     await foreldrebetalingsflyt("sfo-moderasjon", "sfo");
     // household-013 is the only household with both a protected guardian

@@ -1012,6 +1012,80 @@ paths:
         "502":
           $ref: "#/components/responses/OppstroemsFeil"
 
+  /api/seniorsirkel/forslag:
+    get:
+      summary: Seniortilbud som passer for innbyggeren
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Rangerer seniortilbudene i innbyggerens kommune mot interessene hennes.
+        Skåringen er deterministisk og ligger i koden; modellen formulerer, den
+        rangerer ikke. Se docs/seniorsirkel.md for kodene og vektene.
+
+        Kommunen og alderen leses fra registeret, aldri fra spørringen: katalogen
+        gjelder én kommune, og det er et hardt krav. Er den ikke innbyggerens,
+        står hvert tilbud i `utelukkede` med koden `utenfor_kommunen`.
+
+        `forslag` og `utelukkede` er begge med, og summen av dem er
+        `antallVurdert`. Et tilbud med null poeng er ikke utelukket - det er et
+        tilbud uten treff, og det er noe annet enn en dør en rullestol ikke kommer
+        gjennom.
+
+        Ruten krever ikke samtykke. Katalogen er kommunens egen, og interessene er
+        innbyggerens egne svar; samtykket i prosessen `seniorsirkel-profil` gjelder
+        kontaktopplysningene, som denne ruten ikke rører.
+      parameters:
+        - name: personId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: grupper
+          in: query
+          required: false
+          description: >
+            Interessegruppene innbyggeren valgte, som kommaliste. Verdiene står i
+            data/seniorsirkel-grupper.json. En ukjent verdi gir 400 framfor et tomt
+            resultat.
+          schema:
+            type: string
+            example: friluft,kultur
+        - name: rullestol
+          in: query
+          required: false
+          description: >
+            Om innbyggeren trenger rullestoladkomst. Utelatt betyr ikke oppgitt, og
+            det er ikke det samme som `false` - se tilgjengelighetsavsnittet i
+            docs/seniorsirkel.md.
+          schema:
+            type: boolean
+        - name: teleslynge
+          in: query
+          required: false
+          description: Om innbyggeren ønsker teleslynge. Et signal, aldri et filter.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Forslag rangert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Seniorforslag"
+        "400":
+          description: Manglende personId eller ukjent interessegruppe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "404":
+          description: Fant ikke personen, eller personen har ingen bostedskommune
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
   /api/vandel/formaal:
     get:
       summary: Bekreftelsen på formål for en rolle
@@ -1799,6 +1873,114 @@ components:
           type: string
         syntetisk:
           type: boolean
+    Seniorforslag:
+      type: object
+      description: >
+        Katalogen skåret mot én innbygger. `profil` sier hva rangeringen hvilte på,
+        slik at et forslag kan etterprøves uten å gjette hva som ble lagt inn.
+      properties:
+        personId:
+          type: string
+        profil:
+          $ref: "#/components/schemas/Seniorprofil"
+        kommunenummer:
+          type: string
+          description: Katalogens kommune. Er den ikke innbyggerens, er `forslag` tom.
+        antallVurdert:
+          type: integer
+          description: Antall tilbud i katalogen. `forslag` pluss `utelukkede`.
+        forslag:
+          type: array
+          items:
+            $ref: "#/components/schemas/Seniorforslagsrad"
+        utelukkede:
+          type: array
+          description: >
+            Tilbudene et hardt krav stengte ute, med koden sin. De blir stående:
+            en innbygger som har oppgitt at hun bruker rullestol skal få vite at
+            det finnes turgrupper hun ikke kommer inn på.
+          items:
+            $ref: "#/components/schemas/Seniorutelukket"
+        syntetisk:
+          type: boolean
+    Seniorprofil:
+      type: object
+      description: >
+        Det skåringen visste. `kommunenummer` og `alder` er lest fra registeret,
+        resten er innbyggerens egne svar. `kategorier` er utledet av `interesser`.
+        Et tilretteleggingsfelt som mangler betyr ikke oppgitt, ikke nei.
+      properties:
+        kommunenummer:
+          type: string
+        alder:
+          type: integer
+          description: Alderen ved `satser.gjelderFra`, samme dato som vilkåret måler mot.
+        interesser:
+          type: array
+          items:
+            type: string
+        kategorier:
+          type: array
+          items:
+            type: string
+        trengerRullestoladkomst:
+          type: boolean
+        trengerTeleslynge:
+          type: boolean
+    Seniorforslagsrad:
+      type: object
+      description: >
+        Ett tilbud, med skåren og kodene den er summen av. `status` er kommunens
+        eget ord - `krever-verifisering` betyr at et menneske ennå ikke har sett
+        på raden, og det skal kunne stå i teksten innbyggeren leser.
+      properties:
+        aktivitetId:
+          type: string
+        navn:
+          type: string
+        kategori:
+          type: string
+        beskrivelse:
+          type: string
+        tilbudId:
+          type: string
+        tilbyder:
+          type: string
+        status:
+          type: string
+        score:
+          type: integer
+        begrunnelseskoder:
+          type: array
+          items:
+            $ref: "#/components/schemas/Begrunnelseskode"
+    Seniorutelukket:
+      type: object
+      description: >
+        Et tilbud et hardt krav stengte ute. `score` er `null` og ikke null poeng:
+        de to er ikke det samme.
+      properties:
+        aktivitetId:
+          type: string
+        tilbudId:
+          type: string
+        score:
+          type: "null"
+        begrunnelseskoder:
+          type: array
+          items:
+            $ref: "#/components/schemas/Begrunnelseskode"
+    Begrunnelseskode:
+      type: string
+      description: >
+        Hvorfor et tilbud skårer som det gjør. To av dem er harde krav og gir
+        `score: null`: `mangler_rullestoladkomst` og `utenfor_kommunen`. Tre sier
+        «ikke oppgitt» framfor «nei», fordi ukjent tilgjengelighet bæres videre
+        som ukjent. Vektene står i docs/seniorsirkel.md.
+      enum: [treffer_interesse, utenfor_interessene, i_maalgruppen, gjelder_alle,
+        utenfor_maalgruppen, maalgruppe_ukjent, rullestoladkomst, rullestol_ikke_oppgitt,
+        mangler_rullestoladkomst, teleslynge, teleslynge_mangler, teleslynge_ikke_oppgitt,
+        utenfor_kommunen]
     MatrikkelGate:
       type: object
       description: >

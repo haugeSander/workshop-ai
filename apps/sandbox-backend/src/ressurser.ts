@@ -24,7 +24,7 @@ import { ATTESTFORMAAL, TREMAANEDSGRENSEN } from "../../shared/politiattest.ts";
 import { finnGjeldendeLegeerklaering } from "./pasientjournal.ts";
 import { finnGjeldendeAttest, minimerAttest } from "./politiattest.ts";
 import { maskinportenHeader } from "../../digdir-mock/src/client.ts";
-import { fiksBaseUrl, fiksRegisterToken, fiksRolleId } from "./config.ts";
+import { fiksBaseUrl, fiksRegisterToken, fiksRolleId, senioraktivitetFil } from "./config.ts";
 import { buildAdvarsel, tryUpstream } from "./upstream.ts";
 import { addRevisjon } from "./revisjon.ts";
 import { compilePathPattern, matchPath, type PathParams } from "./routing.ts";
@@ -39,6 +39,9 @@ import {
   getHusstandForPerson,
   getPlasserForTjeneste
 } from "./state.ts";
+import { readJson } from "../../shared/jsonstore.ts";
+import { parseAktivitetskatalog } from "../../shared/senioraktivitet.ts";
+import { byggProfilFraKilder, parseInteressegrupper, rangerTilbud } from "./seniorsirkel.ts";
 
 // SHARED RESOURCE CATALOG
 //
@@ -190,6 +193,19 @@ async function withStatus<T>(status: number, read: () => T | Promise<T>): Promis
     if (error instanceof HttpError) {
       throw error;
     }
+    throw new HttpError(feilmelding(error), status);
+  }
+}
+
+/*
+ * Den synkrone tvillingen til withStatus. byggSeniorprofil kaster en ren Error paa
+ * en ukjent gruppeverdi, og det er kallerens skrivefeil - 400, ikke 500.
+ */
+function withStatusSync<T>(status: number, les: () => T): T {
+  try {
+    return les();
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw new HttpError(feilmelding(error), status);
   }
 }
@@ -589,6 +605,71 @@ export const ressurser: Ressurs[] = [
           || selectOrdningForTjeneste(tilstand, personId, sok.get("tjeneste")!);
         return evaluateOrdning(tilstand, personId, ordning);
       })
+  },
+  {
+    // Katalogen er offentlig, så det er ikke tilbudene som gjør ruten lukket. Det
+    // er innbyggeren: alderen og bostedskommunen leses fra folkeregisterdataene og
+    // står i svaret, sammen med det hun har oppgitt om tilrettelegging. Derfor
+    // egne-data - ingen `tilgang` - og derfor `personId` som påkrevd parameter.
+    //
+    // `kreverSamtykke: null` er en påstand og ikke en forglemmelse: katalogen er
+    // kommunens egen, og interessene er innbyggerens egne svar i denne økten.
+    // Samtykket i prosessen gjelder kontaktopplysningene, som denne ruten ikke rører.
+    metode: "GET",
+    sti: "/api/seniorsirkel/forslag",
+    ressurs: "seniorsirkel-forslag",
+    beskrivelse:
+      "Seniortilbudene i innbyggerens kommune, rangert mot interessene hennes. "
+      + "Med ?grupper=, ?rullestol= og ?teleslynge=.",
+    kreverSamtykke: null,
+    formaal: "Foreslå seniortilbud i kommunen",
+    valider: ({ personId }) => {
+      if (!personId) {
+        throw new HttpError("personId er påkrevd.", 400);
+      }
+    },
+    handter: async (kontekst) => {
+      const { tilstand, personId, sok, oekt } = kontekst;
+      const person = findPerson(tilstand, personId);
+      if (!person) {
+        throw new HttpError("Fant ikke person.", 404);
+      }
+      // Kommunenummeret og fødselsdatoen kommer fra registeret og aldri fra
+      // spørringen. En kaller som kunne oppgi kommunen sin selv, ville fått
+      // katalogen til en kommune hun ikke bor i - og det harde kravet i
+      // rangerTilbud hadde vært en innstilling framfor en regel. Begge feltene
+      // overlever skjermingen, nettopp fordi regler måler mot dem (skjerming.ts).
+      const kommunenummer = (person as any).bostedsadresse?.kommunenummer;
+      if (!kommunenummer) {
+        throw new HttpError("Personen har ingen registrert bostedskommune.", 404);
+      }
+
+      // Ingen mellomlagring. Katalogen leses per kall fordi `readJson` leter i
+      // `state/` før `data/`, og det er den overstyringen docs/seniorsirkel.md
+      // lover: en fil lagt i state/ skal virke med én gang, ikke etter en omstart.
+      const katalog = await withStatus(500, async () =>
+        parseAktivitetskatalog(await readJson(senioraktivitetFil)));
+      const grupper = await withStatus(500, async () =>
+        parseInteressegrupper(await readJson("seniorsirkel-grupper.json")));
+
+      // Én funksjon for begge veiene inn, framfor to som skal oppføre seg likt.
+      // Spørringen vinner der økten også svarer; se byggProfilFraKilder.
+      const profil = withStatusSync(400, () => byggProfilFraKilder({
+        kommunenummer,
+        foedselsdato: (person as any).foedselsdato,
+        // Samme dato som vilkåret måler mot, slik at katalogens målgrupper og
+        // retten til ordningen ikke svarer for hver sin dag.
+        referansedato: tilstand.satser.gjelderFra,
+        spoerring: {
+          grupper: sok.get("grupper"),
+          rullestol: sok.get("rullestol"),
+          teleslynge: sok.get("teleslynge")
+        },
+        oektsvar: oekt?.svar
+      }, grupper));
+
+      return { personId, profil, ...rangerTilbud(profil, katalog), syntetisk: true };
+    }
   }
 ];
 
