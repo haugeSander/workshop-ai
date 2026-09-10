@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="nb" data-color-scheme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Min aktivitetsportal</title>
+    <link rel="stylesheet" href="https://static.fiks.ks.no/googlefonts/googleapis/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="/assets/ds-base.css" />
+    <link rel="stylesheet" href="/assets/ds-ksdigital.css" />
+    <style>
+      @layer side;
+      @layer side {
+        body { margin: 0; background: var(--ds-color-background-default); color: var(--ds-color-text-default); }
+        .portal-shell { min-height: 100vh; }
+        .portal-header { border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-default); }
+        .portal-header__inner, .portal-main, .portal-footer__inner { max-width: 70rem; margin: 0 auto; padding-inline: var(--ds-size-4); }
+        .portal-header__inner { min-height: var(--ds-size-18); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-size-4); }
+        .portal-brand { display: flex; align-items: center; gap: var(--ds-size-3); }
+        .portal-brand img { width: var(--ds-size-12); height: var(--ds-size-14); object-fit: contain; }
+        .portal-main { display: grid; gap: var(--ds-size-10); padding-block: var(--ds-size-10) var(--ds-size-18); }
+        .portal-intro { max-width: 48rem; display: grid; gap: var(--ds-size-3); }
+        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--ds-size-4); }
+        .portal-card { height: 100%; display: flex; flex-direction: column; }
+        .portal-card .ds-card__block:last-child { margin-top: auto; }
+        .portal-offer { display: grid; gap: var(--ds-size-3); border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+        .portal-details { display: grid; gap: var(--ds-size-1); margin: 0; padding-left: var(--ds-size-5); }
+        .portal-meta { color: var(--ds-color-text-subtle); margin-bottom: 0; }
+        .portal-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--ds-size-4); margin: 0; }
+        .portal-summary div { padding-block: var(--ds-size-2); border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+        .portal-summary dt { font-weight: var(--ds-font-weight-semibold); }
+        .portal-summary dd { margin: var(--ds-size-1) 0 0; }
+        .portal-actions { display: flex; flex-wrap: wrap; gap: var(--ds-size-3); align-items: center; }
+        .portal-section { display: grid; gap: var(--ds-size-4); }
+        .portal-footer { border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-tinted); }
+        .portal-footer__inner { padding-block: var(--ds-size-6); }
+        [hidden] { display: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="portal-shell">
+      <header class="portal-header">
+        <div class="portal-header__inner">
+          <div class="portal-brand">
+            <img id="kommunevaapen" alt="" hidden />
+            <strong id="merkenavn">Min aktivitetsportal</strong>
+          </div>
+          <button class="ds-button" data-variant="tertiary" type="button" id="byttBruker">Bytt bruker</button>
+        </div>
+      </header>
+
+      <main class="portal-main" id="main-content">
+        <div id="status" class="ds-alert" aria-live="polite">
+          <p class="ds-paragraph">Henter anbefalingene dine …</p>
+        </div>
+
+        <header class="portal-intro" id="intro" hidden>
+          <h1 class="ds-heading" data-size="xl" id="tittel">Anbefalt for deg</h1>
+          <p class="ds-paragraph" data-size="lg" id="ingress"></p>
+        </header>
+
+        <section class="portal-section" id="tilbudsseksjon" hidden aria-labelledby="tilbud-tittel">
+          <div>
+            <h2 class="ds-heading" data-size="md" id="tilbud-tittel">Anbefalte aktiviteter</h2>
+            <p class="ds-paragraph">Anbefalingene bygger på alderen din og kommunen du bor i.</p>
+          </div>
+          <div class="portal-grid" id="tilbud"></div>
+        </section>
+
+        <section class="portal-section" id="paameldingsseksjon" hidden aria-labelledby="paamelding-tittel">
+          <div>
+            <p class="portal-category">Påmelding</p>
+            <h2 class="ds-heading" data-size="lg" id="paamelding-tittel">Kontroller og bekreft</h2>
+            <p class="ds-paragraph">Dette er opplysningene som brukes når du melder deg på.</p>
+          </div>
+          <dl class="portal-summary" id="paameldingsdata"></dl>
+          <div class="ds-alert">
+            <p class="ds-paragraph" id="paameldingsforklaring"></p>
+          </div>
+          <div class="portal-actions">
+            <button class="ds-button" type="button" id="bekreftPaamelding">Bekreft påmelding</button>
+            <button class="ds-button" data-variant="secondary" type="button" id="avbrytPaamelding">Avbryt</button>
+          </div>
+        </section>
+
+        <div id="kvittering" aria-live="polite"></div>
+      </main>
+
+      <footer class="portal-footer">
+        <div class="portal-footer__inner">
+          <p class="ds-paragraph" id="kontaktkommune">Kontakt kommunen din hvis du trenger hjelp.</p>
+          <p class="ds-paragraph" data-size="sm">Alle opplysninger og tilbud i denne sandkassen er syntetiske.</p>
+        </div>
+      </footer>
+    </div>
+    <script src="/delt/felles.ts"></script>
+    <script type="module" src="/client/innbyggerportal.ts"></script>
+  </body>
+</html>

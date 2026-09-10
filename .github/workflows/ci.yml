@@ -99,6 +99,11 @@ jobs:
       - name: Varselkanalen
         run: pnpm test:varsel
 
+      # Availability in the citizen portal is a deterministic age rule. The
+      # boundary cases also pin that today's date is interpreted in Norway.
+      - name: Innbyggerportalens aldersgrenser
+        run: pnpm test:innbyggerportal
+
       # Modulus 11 and Skatteetaten's +80 marker, as pure functions. The seed only
       # contains numbers we generate, so every *rejection* - an ordinary month, a
       # wrong second control digit, an individual number whose mod-11 rest is 10 -
