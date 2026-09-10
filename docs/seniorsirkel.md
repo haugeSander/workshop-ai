@@ -136,8 +136,11 @@ eller nei.
 
 ## Hvordan et tilbud blir foreslått
 
-Skåringen er deterministisk og ligger i kode. Modellen får de best skårende tilbudene og
-begrunnelseskodene, og skriver hvorfor de passer. **Den rangerer ikke, og avgjør ikke.**
+Skåringen er deterministisk og ligger i kode: `apps/sandbox-backend/src/seniorsirkel.ts`.
+Modellen får de best skårende tilbudene og begrunnelseskodene, og skriver hvorfor de
+passer. **Den rangerer ikke, og avgjør ikke.** Modulen er ren og synkron - katalogen
+kommer inn som en parameter - så et utfall kan pinnes mot fixturen uten en eneste
+kjørende tjeneste. `pnpm test:seniorsirkel` gjør det, og den kjører i CI.
 
 | | Virkning |
 |---|---|
@@ -146,6 +149,58 @@ begrunnelseskodene, og skriver hvorfor de passer. **Den rangerer ikke, og avgjø
 | `tilgjengelighet.teleslynge` | Mykt signal. Filtrering her ville skjult nesten hele katalogen |
 | `kategori` | Poeng når kategorien ligger i en gruppe innbyggeren valgte |
 | `maalgrupper` | Poeng når innbyggeren treffer målgruppen tilbudet er rettet mot |
+
+### Begrunnelseskodene
+
+`scoreTilbud(profil, aktivitet, tilbud)` svarer med `{score, begrunnelseskoder}`, og
+kodene er det modellen skriver ut av. De er en union i koden, ikke fritekst: en
+skrivefeil ville gitt en kode ingen prompt kjenner igjen, og det hadde vist seg først
+når en innbygger nådde den.
+
+| Kode | Poeng | Når |
+|---|---|---|
+| `treffer_interesse` | 10 | Kategorien ligger i en gruppe innbyggeren valgte |
+| `utenfor_interessene` | 0 | Den gjør ikke det, og interesser var oppgitt |
+| `i_maalgruppen` | 4 | Alderen ligger innenfor en målgruppe tilbudet retter seg mot |
+| `gjelder_alle` | 2 | Målgruppen gjelder alle |
+| `utenfor_maalgruppen` | 0 | Alderen ligger utenfor |
+| `maalgruppe_ukjent` | 0 | Målgruppen kan ikke måles mot profilen |
+| `rullestoladkomst` | 3 | Behov oppgitt, og tilbudet har adkomst |
+| `rullestol_ikke_oppgitt` | 0 | Behov oppgitt, men kommunen har ikke svart |
+| `mangler_rullestoladkomst` | - | **Hardt krav.** Behov oppgitt, og tilbudet har det ikke |
+| `teleslynge` | 3 | Ønske oppgitt, og tilbudet har teleslynge |
+| `teleslynge_mangler` | 0 | Ønske oppgitt, og tilbudet har det ikke. Utelukker ikke |
+| `teleslynge_ikke_oppgitt` | 0 | Ønske oppgitt, men kommunen har ikke svart |
+| `utenfor_kommunen` | - | **Hardt krav.** Katalogen gjelder en annen kommune |
+
+**Skåren skrives aldri for hånd.** Den er summen av vektene til kodene som slo til, og et
+hardt krav gir `score: null` framfor null poeng. De to er ikke det samme: et tilbud uten
+et eneste treff er fortsatt et tilbud innbyggeren kan møte på, mens en dør en rullestol
+ikke kommer gjennom ikke er et tilbud med lavere skår. Testen måler summen mot delene på
+hver eneste rad, så et poengtall skrevet inn et annet sted i modulen blir rødt.
+
+### Ukjent er ikke bom, og det gjelder også målgruppen
+
+Katalogen bærer ukjent tilgjengelighet som ukjent, og skåringen gjør det samme - det er
+det tre av kodene over handler om. Den samme regelen gjelder målgruppen: `spisevenn` har
+en målgruppe som bare peker ut et kriterium («har behov for sosial kontakt»), og profilen
+bærer ikke behov. Da er svaret `maalgruppe_ukjent`, ikke `utenfor_maalgruppen`. En
+skåring som leste det som bom ville skjult tilbudet for den som trenger det mest.
+
+Er alderen ikke oppgitt i det hele tatt - portalen kan spørre «hva finnes for meg» uten å
+ha personen - er hver aldersmålgruppe ukjent av samme grunn.
+
+### De utelukkede blir stående
+
+`rangerTilbud(profil, katalog)` svarer med både `forslag` og `utelukkede`, og summen av
+dem er `antallVurdert`. En innbygger som har oppgitt at hun bruker rullestol har krav på
+å få vite at det finnes turgrupper hun ikke kommer inn på, framfor at de forsvinner uten
+spor. Rekkefølgen er skår, så `aktivitetId`, så `tilbudId`: de to siste er der for at to
+kjøringer av samme data skal gi samme liste.
+
+Alderen regnes med `alderVed` mot `satser.gjelderFra` - den samme datoen vilkåret bruker,
+slik at katalogens målgrupper og retten til ordningen måler mot samme dag. Ingen
+`new Date()`; se datoavsnittet i [`AGENTS.md`](../AGENTS.md).
 
 ## Hvilken fil som leses
 

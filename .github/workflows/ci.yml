@@ -82,6 +82,15 @@ jobs:
       - name: Vilkårsvurderingen
         run: pnpm test:vilkaar
 
+      # The scoring behind the seniorsirkel forslag, as pure functions against the
+      # fixture. The three-state tilgjengelighet is the reason it is here: «ikke
+      # oppgitt» must filter neither in nor out, and neither the seed nor the
+      # contract dump can tell a missing field from a false one. The literal
+      # fixtures also reach an upper age bound and a målgruppe that gjelder alle,
+      # which the real catalogue has neither of.
+      - name: Skåringen i seniorsirkelen
+        run: pnpm test:seniorsirkel
+
       # Modulus 11 and Skatteetaten's +80 marker, as pure functions. The seed only
       # contains numbers we generate, so every *rejection* - an ordinary month, a
       # wrong second control digit, an individual number whose mod-11 rest is 10 -
