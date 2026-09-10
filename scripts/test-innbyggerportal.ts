@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
 import { norskKalenderdato } from "../apps/shared/alder.ts";
-import { hentPortaltilbud } from "../apps/sandbox-backend/src/innbyggerportal.ts";
+import {
+  hentAktivitetskatalog,
+  hentPortaltilbud
+} from "../apps/sandbox-backend/src/innbyggerportal.ts";
 
 assert.equal(
   norskKalenderdato(Date.parse("2025-12-31T23:30:00Z")),
   "2026-01-01",
   "Portalen skal bruke norsk kalenderdato"
 );
+
+const offentligKatalog = hentAktivitetskatalog();
+assert.equal(offentligKatalog.kommunenavn, "Ringerike");
+assert.equal(offentligKatalog.kommunenummer, "3305");
+assert.ok(offentligKatalog.aktiviteter.length > 0);
+assert.ok(offentligKatalog.tilbydere.length > 0);
+assert.equal(offentligKatalog.mock, true);
+assert.equal(offentligKatalog.syntetisk, true);
 
 const foerTerskel = hentPortaltilbud("1964-09-11", "3305", "2026-09-10");
 assert.equal(foerTerskel.portalTilgjengelig, false);

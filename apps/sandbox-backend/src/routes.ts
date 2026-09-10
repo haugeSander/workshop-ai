@@ -23,7 +23,7 @@ import {
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
 import { routeOverview } from "../../shared/openapi.ts";
-import { finnPortaltilbud, hentPortaltilbud } from "./innbyggerportal.ts";
+import { finnPortaltilbud, hentAktivitetskatalog, hentPortaltilbud } from "./innbyggerportal.ts";
 import {
   buildProsessoektRespons,
   createSoknad,
@@ -379,6 +379,14 @@ const systemruter: Rute[] = [
 // --- routes that need state -----------------------------------------------
 
 const ruter: Rute[] = [
+  {
+    metode: "GET",
+    tilgang: "aapen",
+    sti: "/api/innbyggerportal/placeholder/aktiviteter",
+    handter: ({ response }) => {
+      jsonResponse(response, 200, hentAktivitetskatalog());
+    }
+  },
   {
     metode: "GET",
     sti: "/api/personer",

@@ -1,4 +1,4 @@
-import aktivitetsdata from "../../../aktivitetstilbud.json" with { type: "json" };
+import { readFile } from "node:fs/promises";
 import { alderVed, norskKalenderdato } from "../../shared/alder.ts";
 
 export type Tilgjengelighet = {
@@ -57,14 +57,42 @@ export type Tilbyder = {
 };
 
 type Aktivitetsdata = {
+  kommunenavn?: string;
+  kommunenummer?: string;
+  schemaVersjon?: number;
   aktiviteter: Seniortilbud[];
   tilbydere: Tilbyder[];
 };
 
 const PORTALALDER = 62;
-const KOMMUNENAVN = "Ringerike";
-const KOMMUNENUMMER = "3305";
-const katalog = aktivitetsdata as Aktivitetsdata;
+const fallbackDataUrl = new URL("../../../aktivitetstilbud.json", import.meta.url);
+const backendDataUrl = new URL("../../../data/senioraktiviteter.json", import.meta.url);
+
+async function readKatalog(): Promise<Aktivitetsdata> {
+  try {
+    return JSON.parse(await readFile(backendDataUrl, "utf8")) as Aktivitetsdata;
+  } catch (feil) {
+    if ((feil as NodeJS.ErrnoException).code !== "ENOENT") throw feil;
+    return JSON.parse(await readFile(fallbackDataUrl, "utf8")) as Aktivitetsdata;
+  }
+}
+
+const katalog = await readKatalog();
+const KOMMUNENAVN = katalog.kommunenavn ?? "Ringerike";
+const KOMMUNENUMMER = katalog.kommunenummer ?? "3305";
+const SCHEMA_VERSJON = katalog.schemaVersjon ?? 1;
+
+export function hentAktivitetskatalog() {
+  return {
+    kommunenavn: KOMMUNENAVN,
+    kommunenummer: KOMMUNENUMMER,
+    schemaVersjon: SCHEMA_VERSJON,
+    aktiviteter: katalog.aktiviteter,
+    tilbydere: katalog.tilbydere,
+    mock: true,
+    syntetisk: true
+  };
+}
 
 export function hentPortaltilbud(
   foedselsdato: string,
@@ -78,7 +106,7 @@ export function hentPortaltilbud(
     portalTilgjengelig,
     kommunenavn: KOMMUNENAVN,
     kommunenummer: KOMMUNENUMMER,
-    schemaVersjon: 1,
+    schemaVersjon: SCHEMA_VERSJON,
     aktiviteter: portalTilgjengelig ? katalog.aktiviteter : [],
     tilbydere: portalTilgjengelig ? katalog.tilbydere : []
   };

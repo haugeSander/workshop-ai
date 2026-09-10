@@ -370,6 +370,22 @@ paths:
         "404":
           $ref: "#/components/responses/IkkeFunnet"
 
+  /api/innbyggerportal/placeholder/aktiviteter:
+    get:
+      summary: Hent den offentlige aktivitetskatalogen
+      security: []
+      description: >
+        Midlertidig placeholder. Returnerer den syntetiske aktivitetskatalogen
+        uten personopplysninger og uten krav om innlogging. Påmelding skjer på
+        de beskyttede rutene etter innlogging med ID-porten.
+      responses:
+        "200":
+          description: Offentlig aktivitetskatalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Portalaktivitetskatalog"
+
   /api/innbyggerportal/placeholder/meg:
     get:
       summary: Hent mockpersonen i innbyggerportalen
@@ -1886,6 +1902,23 @@ components:
         navn: { type: string }
         type: { type: string }
         kontakt: { type: object, additionalProperties: true }
+    Portalaktivitetskatalog:
+      type: object
+      required: [kommunenavn, kommunenummer, schemaVersjon, aktiviteter, tilbydere, mock, syntetisk]
+      properties:
+        kommunenavn: { type: string }
+        kommunenummer: { type: string }
+        schemaVersjon: { type: integer }
+        aktiviteter:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalSenioraktivitet"
+        tilbydere:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalTilbyder"
+        mock: { type: boolean, const: true }
+        syntetisk: { type: boolean, const: true }
     PortaltilbudRespons:
       type: object
       required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, tilbydere, mock, syntetisk]
