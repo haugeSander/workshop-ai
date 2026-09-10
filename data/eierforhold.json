@@ -1,7 +1,7 @@
 {
   "beskrivelse": "Tinglyst eierforhold. Eierskap hører i grunnboken, ikke i matrikkelen - derfor egen fil. En matrikkelenhet som ikke står her har ingen registrert eier i sandkassen. Forenkling: raden er nøklet på adressen (matrikkelId), mens hjemmel i virkeligheten ligger på matrikkelenheten (gnr/bnr), og flere adresser deler samme gnr/bnr. Utledet av scripts/importer-tenor.ts.",
   "syntetisk": true,
-  "antall": 176,
+  "antall": 184,
   "eierforhold": [
     {
       "matrikkelId": "matr-geo-0301-11115-74",
@@ -978,6 +978,91 @@
       "eiere": [
         {
           "eier": "person-062",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-10800-11",
+      "eiere": [
+        {
+          "eier": "person-407",
+          "eierform": "SELVEIER",
+          "andel": 0.5
+        },
+        {
+          "eier": "person-408",
+          "eierform": "SELVEIER",
+          "andel": 0.5
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-10800-12",
+      "eiere": [
+        {
+          "eier": "person-404",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-10800-17",
+      "eiere": [
+        {
+          "eier": "person-401",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-17300-10",
+      "eiere": [
+        {
+          "eier": "person-403",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-17300-12",
+      "eiere": [
+        {
+          "eier": "person-406",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-17300-8C",
+      "eiere": [
+        {
+          "eier": "person-407",
+          "eierform": "UTLEIE",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-22000-12",
+      "eiere": [
+        {
+          "eier": "person-402",
+          "eierform": "SELVEIER",
+          "andel": 1
+        }
+      ]
+    },
+    {
+      "matrikkelId": "matr-geo-3305-22000-13",
+      "eiere": [
+        {
+          "eier": "person-405",
           "eierform": "SELVEIER",
           "andel": 1
         }
@@ -2110,9 +2195,9 @@
     }
   ],
   "statistikk": {
-    "husstanderSomEier": 147,
+    "husstanderSomEier": 154,
     "husstanderSomLeier": 34,
-    "ekstraEiendommer": 29,
+    "ekstraEiendommer": 30,
     "flestEiendommerPerPerson": 3
   }
 }

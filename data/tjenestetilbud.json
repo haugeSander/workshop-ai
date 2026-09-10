@@ -2842,5 +2842,29 @@
     "kapasitet": 9,
     "ledigePlasser": 0,
     "syntetisk": true
+  },
+  {
+    "tilbudId": "seniorsirkel-3305",
+    "navn": "Seniorsirkel i Ringerike",
+    "tjeneste": "seniorsirkel",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "malgruppeFraAar": 62,
+    "malgruppeTilAar": 120,
+    "kapasitet": 30,
+    "ledigePlasser": 12,
+    "syntetisk": true
+  },
+  {
+    "tilbudId": "seniorsirkel-0301",
+    "navn": "Seniorsirkel i Oslo",
+    "tjeneste": "seniorsirkel",
+    "kommune": "Oslo",
+    "kommunenummer": "0301",
+    "malgruppeFraAar": 62,
+    "malgruppeTilAar": 120,
+    "kapasitet": 40,
+    "ledigePlasser": 0,
+    "syntetisk": true
   }
 ]

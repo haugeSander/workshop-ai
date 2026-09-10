@@ -349,7 +349,7 @@ Til flaggskipcaset *Redusert foreldrebetaling (barnehage)* passer `person-001`
 du bruker fra tabellen.
 
 Data finnes i `data/personer.json`. **`docs/testpersoner.md` er den genererte
-oversikten over hele befolkningen** - 394 personer med alder, status, husstand og
+oversikten over hele befolkningen** - 402 personer med alder, status, husstand og
 en kolonne som sier om personen kan logge inn, bare være part, eller ingen av
 delene. `docs/syntetiske-data.md` forklarer datagrunnlaget.
 
@@ -437,8 +437,8 @@ Geonorge-oppslag, og uten nett svarer matrikkel-mock 500.
 
 Syntetiske data ligger under `data/`:
 
-- `data/personer.json` - 394 personer
-- `data/husstander.json` - 200 husstander
+- `data/personer.json` - 402 personer
+- `data/husstander.json` - 207 husstander
 - `data/tenor/` - rå uttrekk fra Tenor, kilden importen bygger på
 - `data/forventet-utfall.json` - hva hver husstand er ment å demonstrere, pinnet for `pnpm test`
 - `data/inntekter.json`

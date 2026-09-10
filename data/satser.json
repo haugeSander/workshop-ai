@@ -88,6 +88,15 @@
       "beskrivelse": "Behovsavklaring mot kommunens registrerte tilbud. Vurderes på alder og kapasitet, ikke inntekt."
     },
     {
+      "id": "seniorsirkel",
+      "navn": "Seniorsirkel",
+      "tjeneste": "seniorsirkel",
+      "regel": "TJENESTEBEHOV",
+      "kilde": "Syntetiske kommunale tjenestetilbud laget for sandkassen.",
+      "tilbudsdatasett": "tjenestetilbud",
+      "beskrivelse": "Behovsavklaring mot kommunens registrerte tilbud. Vurderes på alder og bostedskommune, aldri på inntekt. Tilbudet er frivillig, så det finnes ingen hjemmel å vise til - som for støttekontakt."
+    },
+    {
       "id": "tt-kort",
       "navn": "TT-kort (tilrettelagt transport)",
       "tjeneste": "transport",

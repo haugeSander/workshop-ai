@@ -2,7 +2,7 @@
   "kilde": "syntetisk",
   "versjon": "1.7.0",
   "beskrivelse": "Syntetiske testpersoner fra workshop-ai personas kombinert med Folkeregisteret-format",
-  "antall": 394,
+  "antall": 402,
   "personer": [
     {
       "foedselsEllerDNummer": "12818800078",
@@ -25466,6 +25466,345 @@
         "visningsnavn": "Underlig Nisse"
       },
       "kilde": "tenor",
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "14835600190",
+      "personnavn": {
+        "fornavn": "Ingrid",
+        "mellomnavn": null,
+        "etternavn": "Hovland"
+      },
+      "foedselsdato": "1956-03-14",
+      "kjoenn": "KVINNE",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "UGIFT",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 17,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-17"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-17",
+      "kontakt": {
+        "epost": "ingrid.hovland@example.test",
+        "telefon": "+4799990401"
+      },
+      "_sandbox": {
+        "personId": "person-401",
+        "husstandId": "household-211",
+        "rolle": "foresatt",
+        "visningsnavn": "Ingrid Hovland"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "20855800056",
+      "personnavn": {
+        "fornavn": "Kjell",
+        "mellomnavn": null,
+        "etternavn": "Bråten"
+      },
+      "foedselsdato": "1958-05-20",
+      "kjoenn": "MANN",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "SEPARERT",
+      "bostedsadresse": {
+        "adressenavn": "Storgata",
+        "husnummer": 12,
+        "postnummer": "3510",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-22000-12"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-22000-12",
+      "kontakt": {
+        "epost": "kjell.braaten@example.test",
+        "telefon": "+4799990402"
+      },
+      "_sandbox": {
+        "personId": "person-402",
+        "husstandId": "household-212",
+        "rolle": "foresatt",
+        "visningsnavn": "Kjell Bråten"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "11826000025",
+      "personnavn": {
+        "fornavn": "Solveig",
+        "mellomnavn": null,
+        "etternavn": "Ruud"
+      },
+      "foedselsdato": "1960-02-11",
+      "kjoenn": "KVINNE",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "UGIFT",
+      "bostedsadresse": {
+        "adressenavn": "Osloveien",
+        "husnummer": 10,
+        "postnummer": "3511",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-17300-10"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-17300-10",
+      "kontakt": {},
+      "_sandbox": {
+        "personId": "person-403",
+        "husstandId": "household-213",
+        "rolle": "foresatt",
+        "visningsnavn": "Solveig Ruud"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "03866200024",
+      "personnavn": {
+        "fornavn": "Arne",
+        "mellomnavn": null,
+        "etternavn": "Vestby"
+      },
+      "foedselsdato": "1962-06-03",
+      "kjoenn": "MANN",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "UGIFT",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 12,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-12"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": true,
+      "adressebeskyttelse": "STRENGT_FORTROLIG",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-12",
+      "kontakt": {
+        "epost": "arne.vestby@example.test",
+        "telefon": "+4799990404"
+      },
+      "_sandbox": {
+        "personId": "person-404",
+        "husstandId": "household-214",
+        "rolle": "foresatt",
+        "visningsnavn": "Arne Vestby"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "15876400186",
+      "personnavn": {
+        "fornavn": "Bjørg",
+        "mellomnavn": null,
+        "etternavn": "Næss"
+      },
+      "foedselsdato": "1964-07-15",
+      "kjoenn": "KVINNE",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "UGIFT",
+      "bostedsadresse": {
+        "adressenavn": "Storgata",
+        "husnummer": 13,
+        "postnummer": "3510",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-22000-13"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-22000-13",
+      "kontakt": {
+        "epost": "bjorg.naess@example.test",
+        "telefon": "+4799990405"
+      },
+      "_sandbox": {
+        "personId": "person-405",
+        "husstandId": "household-215",
+        "rolle": "foresatt",
+        "visningsnavn": "Bjørg Næss"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "15886400095",
+      "personnavn": {
+        "fornavn": "Terje",
+        "mellomnavn": null,
+        "etternavn": "Lunde"
+      },
+      "foedselsdato": "1964-08-15",
+      "kjoenn": "MANN",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "UGIFT",
+      "bostedsadresse": {
+        "adressenavn": "Osloveien",
+        "husnummer": 12,
+        "postnummer": "3511",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-17300-12"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-17300-12",
+      "kontakt": {
+        "epost": "terje.lunde@example.test",
+        "telefon": "+4799990406"
+      },
+      "_sandbox": {
+        "personId": "person-406",
+        "husstandId": "household-216",
+        "rolle": "foresatt",
+        "visningsnavn": "Terje Lunde"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "08845400033",
+      "personnavn": {
+        "fornavn": "Gerd",
+        "mellomnavn": null,
+        "etternavn": "Sandaker"
+      },
+      "foedselsdato": "1954-04-08",
+      "kjoenn": "KVINNE",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "GIFT",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 11,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-11"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [
+        {
+          "relatertPersonsIdent": "22915700091",
+          "relatertPersonsRolle": "ektefelleEllerPartner",
+          "minRolleForPerson": "ektefelleEllerPartner",
+          "_sandboxRelatertPersonId": "person-408"
+        }
+      ],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-11",
+      "kontakt": {
+        "epost": "gerd.sandaker@example.test",
+        "telefon": "+4799990407"
+      },
+      "_sandbox": {
+        "personId": "person-407",
+        "husstandId": "household-217",
+        "rolle": "foresatt",
+        "visningsnavn": "Gerd Sandaker"
+      },
+      "syntetisk": true
+    },
+    {
+      "foedselsEllerDNummer": "22915700091",
+      "personnavn": {
+        "fornavn": "Olav",
+        "mellomnavn": null,
+        "etternavn": "Sandaker"
+      },
+      "foedselsdato": "1957-11-22",
+      "kjoenn": "MANN",
+      "personstatus": "BOSATT",
+      "doedsfall": null,
+      "sivilstand": "GIFT",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 11,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike",
+        "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-11"
+      },
+      "kontaktadresse": null,
+      "forelderbarnrelasjon": [],
+      "familierelasjon": [
+        {
+          "relatertPersonsIdent": "08845400033",
+          "relatertPersonsRolle": "ektefelleEllerPartner",
+          "minRolleForPerson": "ektefelleEllerPartner",
+          "_sandboxRelatertPersonId": "person-407"
+        }
+      ],
+      "foreldreansvar": null,
+      "sivilstandDetalj": null,
+      "skjermet": false,
+      "adressebeskyttelse": "UGRADERT",
+      "adresseIdentifikatorFraMatrikkelen": "matr-geo-3305-10800-11",
+      "kontakt": {
+        "epost": "olav.sandaker@example.test",
+        "telefon": "+4799990408"
+      },
+      "_sandbox": {
+        "personId": "person-408",
+        "husstandId": "household-217",
+        "rolle": "foresatt",
+        "visningsnavn": "Olav Sandaker"
+      },
       "syntetisk": true
     }
   ]

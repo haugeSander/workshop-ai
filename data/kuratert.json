@@ -1,5 +1,5 @@
 {
-  "beskrivelse": "Handskrevne terskelfixturer. Kilden til person-001..051 og household-001..018. Bare forfattede felter star her: relasjoner er oppgitt i EN retning (barn og ektefelle), og rolle, skjermet, husstandstype, adresse, kommune, medlemmer, relasjonenes motretning og inntektenes identifikator utledes av scripts/importer-tenor.ts. Det valgfrie krr-feltet (reservert, spraak) overstyrer derivasjonen i data/krr.json. Id-ene er frosne; ingen omnummerering.",
+  "beskrivelse": "Handskrevne terskelfixturer. Kilden til person-001..051, person-401..408, household-001..018 og household-211..217. Ringerike-radene (401..408) finnes fordi kommunen ikke var i befolkningen, og de dekker hver kanal SvarUt kan velge og begge sider av aldersgrensen for seniorsirkelen. Bare forfattede felter star her: relasjoner er oppgitt i EN retning (barn og ektefelle), og rolle, skjermet, husstandstype, adresse, kommune, medlemmer, relasjonenes motretning og inntektenes identifikator utledes av scripts/importer-tenor.ts. Det valgfrie krr-feltet (reservert, spraak) overstyrer derivasjonen i data/krr.json. Id-ene er frosne; ingen omnummerering.",
   "syntetisk": true,
   "personer": [
     {
@@ -1426,6 +1426,233 @@
       "barn": [],
       "ektefelle": null,
       "kontakt": {}
+    },
+    {
+      "personId": "person-401",
+      "syntetiskFodselsnummer": "14835600190",
+      "navn": {
+        "fornavn": "Ingrid",
+        "mellomnavn": null,
+        "etternavn": "Hovland"
+      },
+      "foedselsdato": "1956-03-14",
+      "kjoenn": "KVINNE",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 17,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "UGIFT",
+      "husstandId": "household-211",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {
+        "epost": "ingrid.hovland@example.test",
+        "telefon": "+4799990401"
+      }
+    },
+    {
+      "personId": "person-402",
+      "syntetiskFodselsnummer": "20855800056",
+      "navn": {
+        "fornavn": "Kjell",
+        "mellomnavn": null,
+        "etternavn": "Bråten"
+      },
+      "foedselsdato": "1958-05-20",
+      "kjoenn": "MANN",
+      "bostedsadresse": {
+        "adressenavn": "Storgata",
+        "husnummer": 12,
+        "postnummer": "3510",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "SEPARERT",
+      "husstandId": "household-212",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {
+        "epost": "kjell.braaten@example.test",
+        "telefon": "+4799990402"
+      },
+      "krr": {
+        "reservert": true
+      }
+    },
+    {
+      "personId": "person-403",
+      "syntetiskFodselsnummer": "11826000025",
+      "navn": {
+        "fornavn": "Solveig",
+        "mellomnavn": null,
+        "etternavn": "Ruud"
+      },
+      "foedselsdato": "1960-02-11",
+      "kjoenn": "KVINNE",
+      "bostedsadresse": {
+        "adressenavn": "Osloveien",
+        "husnummer": 10,
+        "postnummer": "3511",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "UGIFT",
+      "husstandId": "household-213",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {}
+    },
+    {
+      "personId": "person-404",
+      "syntetiskFodselsnummer": "03866200024",
+      "navn": {
+        "fornavn": "Arne",
+        "mellomnavn": null,
+        "etternavn": "Vestby"
+      },
+      "foedselsdato": "1962-06-03",
+      "kjoenn": "MANN",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 12,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "UGIFT",
+      "husstandId": "household-214",
+      "adressebeskyttelse": "STRENGT_FORTROLIG",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {
+        "epost": "arne.vestby@example.test",
+        "telefon": "+4799990404"
+      },
+      "krr": {
+        "reservert": true
+      }
+    },
+    {
+      "personId": "person-405",
+      "syntetiskFodselsnummer": "15876400186",
+      "navn": {
+        "fornavn": "Bjørg",
+        "mellomnavn": null,
+        "etternavn": "Næss"
+      },
+      "foedselsdato": "1964-07-15",
+      "kjoenn": "KVINNE",
+      "bostedsadresse": {
+        "adressenavn": "Storgata",
+        "husnummer": 13,
+        "postnummer": "3510",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "UGIFT",
+      "husstandId": "household-215",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {
+        "epost": "bjorg.naess@example.test",
+        "telefon": "+4799990405"
+      }
+    },
+    {
+      "personId": "person-406",
+      "syntetiskFodselsnummer": "15886400095",
+      "navn": {
+        "fornavn": "Terje",
+        "mellomnavn": null,
+        "etternavn": "Lunde"
+      },
+      "foedselsdato": "1964-08-15",
+      "kjoenn": "MANN",
+      "bostedsadresse": {
+        "adressenavn": "Osloveien",
+        "husnummer": 12,
+        "postnummer": "3511",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "UGIFT",
+      "husstandId": "household-216",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": null,
+      "kontakt": {
+        "epost": "terje.lunde@example.test",
+        "telefon": "+4799990406"
+      }
+    },
+    {
+      "personId": "person-407",
+      "syntetiskFodselsnummer": "08845400033",
+      "navn": {
+        "fornavn": "Gerd",
+        "mellomnavn": null,
+        "etternavn": "Sandaker"
+      },
+      "foedselsdato": "1954-04-08",
+      "kjoenn": "KVINNE",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 11,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "GIFT",
+      "husstandId": "household-217",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": "person-408",
+      "kontakt": {
+        "epost": "gerd.sandaker@example.test",
+        "telefon": "+4799990407"
+      }
+    },
+    {
+      "personId": "person-408",
+      "syntetiskFodselsnummer": "22915700091",
+      "navn": {
+        "fornavn": "Olav",
+        "mellomnavn": null,
+        "etternavn": "Sandaker"
+      },
+      "foedselsdato": "1957-11-22",
+      "kjoenn": "MANN",
+      "bostedsadresse": {
+        "adressenavn": "Hønengata",
+        "husnummer": 11,
+        "postnummer": "3513",
+        "poststed": "Hønefoss",
+        "kommunenummer": "3305",
+        "kommune": "Ringerike"
+      },
+      "sivilstand": "GIFT",
+      "husstandId": "household-217",
+      "adressebeskyttelse": "UGRADERT",
+      "barn": [],
+      "ektefelle": "person-407",
+      "kontakt": {
+        "epost": "olav.sandaker@example.test",
+        "telefon": "+4799990408"
+      }
     }
   ],
   "husstander": [
@@ -1500,6 +1727,34 @@
     {
       "husstandId": "household-018",
       "scenario": "Edge case: husstand uten barn."
+    },
+    {
+      "husstandId": "household-211",
+      "scenario": "Ringerike: 70 ar, digital kanal i kontaktregisteret. Kvalifiserer til seniorsirkelen."
+    },
+    {
+      "husstandId": "household-212",
+      "scenario": "Ringerike: 68 ar, reservert mot digital kommunikasjon. Varselet ma sendes som brev."
+    },
+    {
+      "husstandId": "household-213",
+      "scenario": "Ringerike: 66 ar, ingen kontaktopplysninger. Varselet ma sendes som brev."
+    },
+    {
+      "husstandId": "household-214",
+      "scenario": "Ringerike: 64 ar, strengt fortrolig adresse og reservert mot digital post. Ingen kanal er lovlig, og varselet stanser. Skjerming alene er ikke nok: maskKrr beholder kanVarsles, sa en skjermet person som kan varsles far varselet digitalt."
+    },
+    {
+      "husstandId": "household-215",
+      "scenario": "Ringerike: nettopp fylt 62. Nedre grense for seniorsirkelen, innenfra."
+    },
+    {
+      "husstandId": "household-216",
+      "scenario": "Ringerike: 61 ar, bursdagen er ikke passert. Nedre grense for seniorsirkelen, utenfra."
+    },
+    {
+      "husstandId": "household-217",
+      "scenario": "Ringerike: ektepar der begge er over 62. Varselet gar til hver person, ikke til husstanden."
     }
   ],
   "inntekter": [

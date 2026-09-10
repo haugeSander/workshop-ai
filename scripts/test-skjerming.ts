@@ -112,12 +112,14 @@ check(
 
 check("person-001 er uendret", JSON.stringify(person("person-001")) === JSON.stringify(kilde("person-001")));
 
-const forventetSkjermede = ["person-031", "person-194", "person-218", "person-219", "person-319", "person-320"];
+const forventetSkjermede = [
+  "person-031", "person-194", "person-218", "person-219", "person-319", "person-320", "person-404"
+];
 const faktiskEndret = maskert.personer
   .filter((p, i) => JSON.stringify(p) !== JSON.stringify(kildePersoner[i]))
   .map((p) => p.personId);
 check(
-  "nøyaktig de seks skjermede er endret",
+  "nøyaktig de sju skjermede er endret",
   JSON.stringify(faktiskEndret.sort()) === JSON.stringify([...forventetSkjermede].sort()),
   faktiskEndret.join(", ")
 );
@@ -144,7 +146,7 @@ for (const hemmelig of ["Siri", "Rustad", "Trondheimsveien", "Kvistadbakkan", "G
 
 // --- households: masked only when every member is protected ---------------
 
-for (const id of ["household-083", "household-093", "household-157"]) {
+for (const id of ["household-083", "household-093", "household-157", "household-214"]) {
   check(`${id} mister adressen (alle medlemmer skjermet)`, husstand(id).adresse === null);
   check(`${id} beholder kommunen`, Boolean(husstand(id).kommune));
 }
@@ -171,8 +173,9 @@ const endredeHusstander = maskert.husstander
   .filter((h, i) => JSON.stringify(h) !== JSON.stringify(kildeHusstander[i]))
   .map((h) => h.husstandId);
 check(
-  "nøyaktig tre husstander er endret",
-  JSON.stringify(endredeHusstander.sort()) === JSON.stringify(["household-083", "household-093", "household-157"]),
+  "nøyaktig fire husstander er endret",
+  JSON.stringify(endredeHusstander.sort())
+    === JSON.stringify(["household-083", "household-093", "household-157", "household-214"]),
   endredeHusstander.join(", ")
 );
 
@@ -385,6 +388,18 @@ check(
 const mottaker219 = buildKvitteringKropp(person("person-219"), "soknad-0000000000000-skjerm").mottaker;
 const utfall219 = chooseKanal(mottaker219, false, undefined);
 check("person-219 uten KRR-rad får ingen kanal (degraderer trygt)", utfall219.lovlig === false);
+
+// person-404 er den andre veien til samme utfall, og den som betyr noe for utgående
+// varsler: raden i KRR finnes, men personen har reservert seg. Skjerming alene holder
+// ikke - maskKrr beholder kanVarsles, så person-031 over får varselet digitalt. Det er
+// først reservasjonen i tillegg til den maskerte adressen som stenger begge kanaler.
+const mottaker404 = buildKvitteringKropp(person("person-404"), "soknad-0000000000000-skjerm").mottaker;
+const utfall404 = chooseKanal(mottaker404, false, krrFor("person-404"));
+check(
+  "person-404 (kode 6 og reservert) får ingen kanal",
+  utfall404.lovlig === false && utfall404.kode === "MANGLER_MOTTAKERADRESSE",
+  JSON.stringify(utfall404)
+);
 
 // person-001 is unprotected, so the address IS there. Without this the checks
 // above would pass on a function that never sends an address to anyone.

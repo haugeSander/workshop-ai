@@ -15,17 +15,17 @@ Hele befolkningen i sandkassen, generert fra `data/personer.json`. `pnpm test` f
 
 | | Antall |
 |---|---:|
-| Personer i registeret | 394 |
-| Bosatte - kan være part i en sak | 369 |
-| Kan ha elektronisk ID (13 år eller mer, bosatt) | 304 |
-| Kan opptre på egen hånd (18 år eller mer, bosatt) | 282 |
+| Personer i registeret | 402 |
+| Bosatte - kan være part i en sak | 377 |
+| Kan ha elektronisk ID (13 år eller mer, bosatt) | 312 |
+| Kan opptre på egen hånd (18 år eller mer, bosatt) | 290 |
 | Mindreårige - part i saken, men foresatt må være avsender | 87 |
 | Under 13 - kan aldri logge inn, ingen eID finnes | 65 |
-| 67 år eller mer | 60 |
+| 67 år eller mer | 64 |
 | Ikke bosatt (død, utflyttet, inaktiv, midlertidig) | 25 |
-| Med adressebeskyttelse | 6 |
+| Med adressebeskyttelse | 7 |
 | Med inntektsopplysninger | 280 |
-| Med registrert eiendom | 219 |
+| Med registrert eiendom | 227 |
 
 Aldrene er regnet ved `satser.gjelderFra` (2026-08-01), ikke ved dagens dato. Samme fryste dato brukes når reglene vurderer gyldigheten til legeerklæringer og alderen på politiattester. Et dokument som er utløpt på workshopdagen 8. september 2026 kan derfor fortsatt godtas i demoen. Dette er en testforenkling, ikke en vurdering av gyldigheten i dag. Samtykker og token utløper derimot etter den løpende klokken. Se [referansedatoen](syntetiske-data.md#fryst-referansedato).
 
@@ -33,7 +33,7 @@ Aldrene er regnet ved `satser.gjelderFra` (2026-08-01), ikke ved dagens dato. Sa
 
 | Status | Antall | Hva det betyr her |
 |---|---:|---|
-| BOSATT | 369 | Bor i en norsk kommune. Har husstand, adresse og kan være part i en sak. |
+| BOSATT | 377 | Bor i en norsk kommune. Har husstand, adresse og kan være part i en sak. |
 | INAKTIV | 16 | Nesten alle disse har D-nummer, ikke fødselsnummer, og ingen norsk bostedsadresse. |
 | DOED | 6 | Registrert død. Kan ikke logge inn eller være avsender, men relasjonene står - et barn har fortsatt en mor. |
 | UTFLYTTET | 2 | Flyttet ut av Norge. Ingen husstand, ingen kommune å ha dialog med. |
@@ -45,11 +45,11 @@ Aldrene er regnet ved `satser.gjelderFra` (2026-08-01), ikke ved dagens dato. Sa
 
 | | Antall |
 |---|---:|
-| Rader i kontaktregisteret | 298 |
-| Reservert mot digital kommunikasjon | 37 |
-| Uten e-post og telefon | 31 |
-| Kan varsles digitalt (`kanVarsles`) | 240 |
-| Målform `nb` | 262 |
+| Rader i kontaktregisteret | 306 |
+| Reservert mot digital kommunikasjon | 39 |
+| Uten e-post og telefon | 32 |
+| Kan varsles digitalt (`kanVarsles`) | 245 |
+| Målform `nb` | 270 |
 | Målform `nn` | 21 |
 | Målform `en` | 15 |
 
@@ -455,6 +455,14 @@ Aldrene er regnet ved `satser.gjelderFra` (2026-08-01), ikke ved dagens dato. Sa
 | `person-392` | Påpasselig Lagidrett | 36 | INAKTIV | - | - | - | nei | - | - | - | tenor |
 | `person-393` | Komplett Varedeklarasjon | 26 | INAKTIV | - | - | - | nei | - | - | - | tenor |
 | `person-394` | Underlig Nisse | 50 | INAKTIV | - | - | - | nei | - | - | - | tenor |
+| `person-401` | Ingrid Hovland | 70 | BOSATT | household-211 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-402` | Kjell Bråten | 68 | BOSATT | household-212 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-403` | Solveig Ruud | 66 | BOSATT | household-213 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-404` | Skjermet person | 64 | BOSATT | household-214 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-405` | Bjørg Næss | 62 | BOSATT | household-215 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-406` | Terje Lunde | 61 | BOSATT | household-216 (ENSLIG) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-407` | Gerd Sandaker | 72 | BOSATT | household-217 (PAR_UTEN_BARN) | foresatt | Ringerike | ja | ja | - | - | kuratert |
+| `person-408` | Olav Sandaker | 68 | BOSATT | household-217 (PAR_UTEN_BARN) | foresatt | Ringerike | ja | ja | - | - | kuratert |
 
 ## Grenser du bør kjenne
 

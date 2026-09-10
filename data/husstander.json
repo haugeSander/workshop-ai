@@ -3856,5 +3856,114 @@
     "kilde": "tenor",
     "syntetisk": true,
     "scenario": "Én voksen som bor alene. Fra Tenor, for bredde."
+  },
+  {
+    "husstandId": "household-211",
+    "type": "ENSLIG",
+    "adresse": "Hønengata 17",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-401",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: 70 ar, digital kanal i kontaktregisteret. Kvalifiserer til seniorsirkelen."
+  },
+  {
+    "husstandId": "household-212",
+    "type": "ENSLIG",
+    "adresse": "Storgata 12",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-402",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: 68 ar, reservert mot digital kommunikasjon. Varselet ma sendes som brev."
+  },
+  {
+    "husstandId": "household-213",
+    "type": "ENSLIG",
+    "adresse": "Osloveien 10",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-403",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: 66 ar, ingen kontaktopplysninger. Varselet ma sendes som brev."
+  },
+  {
+    "husstandId": "household-214",
+    "type": "ENSLIG",
+    "adresse": "Hønengata 12",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-404",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: 64 ar, strengt fortrolig adresse og reservert mot digital post. Ingen kanal er lovlig, og varselet stanser. Skjerming alene er ikke nok: maskKrr beholder kanVarsles, sa en skjermet person som kan varsles far varselet digitalt."
+  },
+  {
+    "husstandId": "household-215",
+    "type": "ENSLIG",
+    "adresse": "Storgata 13",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-405",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: nettopp fylt 62. Nedre grense for seniorsirkelen, innenfra."
+  },
+  {
+    "husstandId": "household-216",
+    "type": "ENSLIG",
+    "adresse": "Osloveien 12",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-406",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: 61 ar, bursdagen er ikke passert. Nedre grense for seniorsirkelen, utenfra."
+  },
+  {
+    "husstandId": "household-217",
+    "type": "PAR_UTEN_BARN",
+    "adresse": "Hønengata 11",
+    "kommune": "Ringerike",
+    "kommunenummer": "3305",
+    "medlemmer": [
+      {
+        "personId": "person-407",
+        "rolle": "foresatt"
+      },
+      {
+        "personId": "person-408",
+        "rolle": "foresatt"
+      }
+    ],
+    "syntetisk": true,
+    "scenario": "Ringerike: ektepar der begge er over 62. Varselet gar til hver person, ikke til husstanden."
   }
 ]

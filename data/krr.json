@@ -5114,5 +5114,141 @@
     "kanVarsles": false,
     "spraak": "nb",
     "syntetisk": true
+  },
+  {
+    "fnr": "14835600190",
+    "epost": {
+      "adresse": "ingrid.hovland@example.test",
+      "sistOppdatert": "2025-06-06",
+      "sistVerifisert": "2025-06-06"
+    },
+    "tlf": {
+      "nummer": "+4799990401",
+      "sistOppdatert": "2025-06-06",
+      "sistVerifisert": "2025-06-06"
+    },
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": true,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "20855800056",
+    "epost": {
+      "adresse": "kjell.braaten@example.test",
+      "sistOppdatert": "2025-02-02",
+      "sistVerifisert": "2025-02-02"
+    },
+    "tlf": {
+      "nummer": "+4799990402",
+      "sistOppdatert": "2025-02-02",
+      "sistVerifisert": "2025-02-02"
+    },
+    "status": "AKTIV",
+    "reservert": true,
+    "kanVarsles": false,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "11826000025",
+    "epost": null,
+    "tlf": null,
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": false,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "03866200024",
+    "epost": {
+      "adresse": "arne.vestby@example.test",
+      "sistOppdatert": "2025-09-05",
+      "sistVerifisert": "2025-09-05"
+    },
+    "tlf": {
+      "nummer": "+4799990404",
+      "sistOppdatert": "2025-09-05",
+      "sistVerifisert": "2025-09-05"
+    },
+    "status": "AKTIV",
+    "reservert": true,
+    "kanVarsles": false,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "15876400186",
+    "epost": {
+      "adresse": "bjorg.naess@example.test",
+      "sistOppdatert": "2025-12-25",
+      "sistVerifisert": "2025-12-25"
+    },
+    "tlf": {
+      "nummer": "+4799990405",
+      "sistOppdatert": "2025-12-25",
+      "sistVerifisert": "2025-12-25"
+    },
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": true,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "15886400095",
+    "epost": {
+      "adresse": "terje.lunde@example.test",
+      "sistOppdatert": "2025-12-10",
+      "sistVerifisert": "2025-12-10"
+    },
+    "tlf": {
+      "nummer": "+4799990406",
+      "sistOppdatert": "2025-12-10",
+      "sistVerifisert": "2025-12-10"
+    },
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": true,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "08845400033",
+    "epost": {
+      "adresse": "gerd.sandaker@example.test",
+      "sistOppdatert": "2025-07-14",
+      "sistVerifisert": "2025-07-14"
+    },
+    "tlf": {
+      "nummer": "+4799990407",
+      "sistOppdatert": "2025-07-14",
+      "sistVerifisert": "2025-07-14"
+    },
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": true,
+    "spraak": "nb",
+    "syntetisk": true
+  },
+  {
+    "fnr": "22915700091",
+    "epost": {
+      "adresse": "olav.sandaker@example.test",
+      "sistOppdatert": "2025-11-13",
+      "sistVerifisert": "2025-11-13"
+    },
+    "tlf": {
+      "nummer": "+4799990408",
+      "sistOppdatert": "2025-11-13",
+      "sistVerifisert": "2025-11-13"
+    },
+    "status": "AKTIV",
+    "reservert": false,
+    "kanVarsles": true,
+    "spraak": "nb",
+    "syntetisk": true
   }
 ]
