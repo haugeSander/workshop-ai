@@ -14,7 +14,8 @@
         .portal-shell { min-height: 100vh; }
         .portal-header { border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-default); }
         .portal-header__inner, .portal-main, .portal-footer__inner { max-width: 70rem; margin: 0 auto; padding-inline: var(--ds-size-4); }
-        .portal-header__inner { min-height: var(--ds-size-18); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-size-4); }
+        .portal-header__inner { min-height: var(--ds-size-18); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-size-4); padding-block: var(--ds-size-2); }
+        .portal-header__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-size-2); }
         .portal-brand { display: flex; align-items: center; gap: var(--ds-size-3); }
         .portal-brand img { width: var(--ds-size-12); height: var(--ds-size-14); object-fit: contain; }
         .portal-main { display: grid; gap: var(--ds-size-10); padding-block: var(--ds-size-10) var(--ds-size-18); }
@@ -48,7 +49,10 @@
             <img id="kommunevaapen" alt="" hidden />
             <strong id="merkenavn">Min aktivitetsportal</strong>
           </div>
-          <button class="ds-button" data-variant="tertiary" type="button" id="byttBruker">Bytt bruker</button>
+          <div class="portal-header__actions">
+            <a class="ds-button" data-variant="tertiary" href="/innbyggerportal">Min side</a>
+            <button class="ds-button" data-variant="tertiary" type="button" id="byttBruker">Bytt bruker</button>
+          </div>
         </div>
       </header>
 

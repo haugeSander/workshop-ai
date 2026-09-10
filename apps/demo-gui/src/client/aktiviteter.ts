@@ -134,7 +134,7 @@ function renderAktiviteter(): void {
       tilbudsdel.append(detaljer);
       if (tilbud.paamelding?.kreves) {
         const lenke = element("a", "ds-button", "Meld på");
-        lenke.href = `/innbyggerportal?tilbudId=${encodeURIComponent(tilbud.tilbudId)}`;
+        lenke.href = `/innbyggerportal/aktiviteter?tilbudId=${encodeURIComponent(tilbud.tilbudId)}`;
         tilbudsdel.append(lenke);
       } else {
         tilbudsdel.append(element("p", "portal-meta", "Ingen påmelding nødvendig"));

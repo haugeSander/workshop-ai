@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="nb" data-color-scheme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Min side</title>
+    <link rel="stylesheet" href="https://static.fiks.ks.no/googlefonts/googleapis/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="/assets/ds-base.css" />
+    <link rel="stylesheet" href="/assets/ds-ksdigital.css" />
+    <style>
+      @layer side;
+      @layer side {
+        body { margin: 0; background: var(--ds-color-background-default); color: var(--ds-color-text-default); }
+        .portal-shell { min-height: 100vh; }
+        .portal-header { border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-default); }
+        .portal-header__inner, .portal-main, .portal-footer__inner { max-width: 70rem; margin: 0 auto; padding-inline: var(--ds-size-4); }
+        .portal-header__inner { min-height: var(--ds-size-18); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-size-4); padding-block: var(--ds-size-2); }
+        .portal-brand { display: flex; align-items: center; gap: var(--ds-size-3); }
+        .portal-brand img { width: var(--ds-size-12); height: var(--ds-size-14); object-fit: contain; }
+        .portal-main { display: grid; gap: var(--ds-size-10); padding-block: var(--ds-size-10) var(--ds-size-18); }
+        .portal-intro { max-width: 48rem; display: grid; gap: var(--ds-size-3); }
+        .portal-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--ds-size-4); }
+        .portal-service { display: grid; gap: var(--ds-size-4); }
+        .portal-service__content { display: grid; gap: var(--ds-size-2); }
+        .portal-service__content p { margin: 0; }
+        .portal-meta { color: var(--ds-color-text-subtle); }
+        .portal-footer { border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-tinted); }
+        .portal-footer__inner { padding-block: var(--ds-size-6); }
+        [hidden] { display: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="portal-shell">
+      <header class="portal-header">
+        <div class="portal-header__inner">
+          <div class="portal-brand">
+            <img id="kommunevaapen" alt="" hidden />
+            <strong id="merkenavn">Min side</strong>
+          </div>
+          <button class="ds-button" data-variant="tertiary" type="button" id="byttBruker">Bytt bruker</button>
+        </div>
+      </header>
+
+      <main class="portal-main" id="main-content">
+        <div id="status" class="ds-alert" aria-live="polite">
+          <p class="ds-paragraph">Henter tjenestene dine …</p>
+        </div>
+
+        <header class="portal-intro" id="intro" hidden>
+          <h1 class="ds-heading" data-size="xl" id="tittel">Min side</h1>
+          <p class="ds-paragraph" data-size="lg">Her finner du kommunale tjenester som er tilgjengelige for deg.</p>
+        </header>
+
+        <section aria-labelledby="tjenester-tittel" id="tjenester" hidden>
+          <h2 class="ds-heading" data-size="md" id="tjenester-tittel">Dine tjenester</h2>
+          <div class="portal-services">
+            <article class="ds-card portal-service">
+              <div class="ds-card__block portal-service__content">
+                <h3 class="ds-heading">Aktiviteter</h3>
+                <p class="ds-paragraph" id="aktivitetsbeskrivelse">Se aktiviteter som kan passe for deg.</p>
+                <p class="portal-meta" id="aktivitetsstatus"></p>
+                <a class="ds-button" href="/innbyggerportal/aktiviteter">Se aktivitetene dine</a>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="portal-footer">
+        <div class="portal-footer__inner">
+          <p class="ds-paragraph" id="kontaktkommune">Kontakt kommunen din hvis du trenger hjelp.</p>
+          <p class="ds-paragraph" data-size="sm">Alle opplysninger og tilbud i denne sandkassen er syntetiske.</p>
+        </div>
+      </footer>
+    </div>
+    <script src="/delt/felles.ts"></script>
+    <script type="module" src="/client/innbyggerportal-hjem.ts"></script>
+  </body>
+</html>
+*** Add File: /home/roarhelland/ks-hackathon/workshop-ai/apps/demo-gui/src/client/innbyggerportal-hjem.ts
+export {};
+
+const backendBase = "http://localhost:8080";
+
+type Portalperson = Person & {
+  bostedsadresse?: { kommune?: string | null; kommunenummer?: string | null } | null;
+};
+
+type Portalrespons = {
+  alder: number;
+  portalTilgjengelig: boolean;
+  aktiviteter: unknown[];
+  andreAktiviteter: unknown[];
+  preferanserValgt: boolean;
+};
+
+type Registreringsrespons = {
+  registreringer: unknown[];
+};
+
+async function api<T>(sti: string): Promise<T> {
+  const svar = await fetch(`${backendBase}${sti}`, { headers: withToken() });
+  const data = await svar.json();
+  if (!svar.ok) throw new Error(data.feil || `Tjenesten svarte ${svar.status}.`);
+  return data as T;
+}
+
+async function start(): Promise<void> {
+  if (!(await requireLogin())) return;
+  const [person, portal, registreringer] = await Promise.all([
+    api<Portalperson>("/api/innbyggerportal/placeholder/meg"),
+    api<Portalrespons>("/api/innbyggerportal/placeholder/tilbud"),
+    api<Registreringsrespons>("/api/innbyggerportal/placeholder/registreringer")
+  ]);
+
+  krevEl("merkenavn").textContent = `${person.bostedsadresse?.kommune ?? "Min"} innbyggerportal`;
+  krevEl("tittel").textContent = `Hei, ${person.visningsnavn}`;
+  krevEl("kontaktkommune").textContent = `Kontakt ${person.bostedsadresse?.kommune ?? "kommunen"} hvis du trenger hjelp.`;
+
+  const vaapen = krevEl<HTMLImageElement>("kommunevaapen");
+  if (person.bostedsadresse?.kommunenummer) {
+    vaapen.src = `https://static.fiks.ks.no/img/kommunevaapen/${person.bostedsadresse.kommunenummer}.png`;
+    vaapen.alt = `${person.bostedsadresse.kommune ?? "Kommunens"} våpen`;
+    vaapen.hidden = false;
+  }
+
+  const tilgjengelige = portal.aktiviteter.length + portal.andreAktiviteter.length;
+  krevEl("aktivitetsbeskrivelse").textContent = portal.portalTilgjengelig
+    ? portal.preferanserValgt
+      ? "Se anbefalte aktiviteter, resten av tilbudene og påmeldingene dine."
+      : "Velg interesser for å få anbefalinger som passer for deg."
+    : portal.alder < 62
+      ? "Aktivitetstjenesten blir tilgjengelig når du fyller 62 år."
+      : "Aktivitetstjenesten er ikke tilgjengelig i kommunen din.";
+  krevEl("aktivitetsstatus").textContent = portal.portalTilgjengelig
+    ? `${tilgjengelige} aktiviteter tilgjengelig · ${registreringer.registreringer.length} påmeldinger`
+    : "Ikke tilgjengelig ennå";
+
+  krevEl("status").hidden = true;
+  krevEl("intro").hidden = false;
+  krevEl("tjenester").hidden = false;
+}
+
+krevEl<HTMLButtonElement>("byttBruker").addEventListener("click", switchUser);
+
+start().catch((feil) => {
+  const status = krevEl("status");
+  status.textContent = feil instanceof Error ? feil.message : "Noe gikk galt.";
+  status.dataset.color = "danger";
+});
