@@ -1,0 +1,192 @@
+{
+  "kommunenavn": "Ringerike",
+  "kommunenummer": "3305",
+  "schemaVersjon": 1,
+  "aktiviteter": [
+    {
+      "aktivitetId": "lavterskel-turgruppe",
+      "navn": "Lavterskel turgruppe",
+      "kategori": "friluftsliv-og-trening",
+      "beskrivelse": "Felles turer i nærområdet med frivillige turledere og tilpasset tempo.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "seniorer",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": []
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "dnt-ringerike-seniorgruppa",
+          "tilbyderId": "dnt-ringerike",
+          "navn": "DNT Ringerike Seniorgruppa",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": [
+              "lavterskeltur",
+              "fottur"
+            ],
+            "tilrettelegging": [
+              "turledere-med-lokalkunnskap",
+              "turleder-utdannet-for-naerturer"
+            ]
+          },
+          "tidspunkter": [
+            {
+              "ukedager": [
+                "tirsdag"
+              ],
+              "fraKlokkeslett": "09:30",
+              "sesong": {
+                "fraMaaned": 4,
+                "tilMaaned": 10
+              }
+            }
+          ],
+          "steder": [
+            {
+              "navn": "Hønefoss Idrettspark",
+              "rolle": "oppmøtested"
+            }
+          ],
+          "kontakt": {
+            "nettside": "https://dntringerike.no/senior/",
+            "besoksadresse": "Storgata 6"
+          },
+          "tilgjengelighet": {
+            "rullestol": false,
+            "teleslynge": false
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 27
+        }
+      ]
+    },
+    {
+      "aktivitetId": "seniorkino",
+      "navn": "Seniorkino",
+      "kategori": "kultur-og-fellesskap",
+      "beskrivelse": "Filmvisning på dagtid med dempet lyd og behagelige omgivelser.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "voksent-publikum",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": []
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "seniorkino-honefoss-kino",
+          "tilbyderId": "honefoss-kino",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": [
+              "kino"
+            ],
+            "tilrettelegging": [
+              "dempet-lyd",
+              "dagtid"
+            ]
+          },
+          "kontakt": {
+            "telefon": "93 23 89 45",
+            "nettside": "https://www.nfkino.no"
+          },
+          "tilgjengelighet": {
+            "rullestol": true,
+            "teleslynge": true
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 21
+        }
+      ]
+    },
+    {
+      "aktivitetId": "spisevenn",
+      "navn": "Spisevenn",
+      "kategori": "frivillighet-og-sosial-stotte",
+      "beskrivelse": "En frivillig deler et måltid og sosialt samvær med en person som ønsker selskap.",
+      "opprinnelse": "syntetisk",
+      "status": "syntetisk-eksempel",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "personer-som-onsker-selskap-ved-maltid",
+          "gjelderAlle": false,
+          "kriterier": [
+            {
+              "type": "behov",
+              "verdier": [
+                "sosial-kontakt"
+              ]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "spisevenn-frivillighet-helse",
+          "tilbyderId": "frivillighet-helse-og-omsorg",
+          "status": "syntetisk-eksempel",
+          "gjennomforing": {
+            "former": [
+              "frivillig-oppdrag",
+              "individuell-oppfolging"
+            ]
+          },
+          "paamelding": {
+            "kreves": true,
+            "informasjon": "Match mellom frivillig og deltaker må avklares."
+          }
+        }
+      ],
+      "inspirertAv": [
+        "spisevenn",
+        "besøksvenn og sosial kontakt"
+      ]
+    }
+  ],
+  "tilbydere": [
+    {
+      "tilbyderId": "dnt-ringerike",
+      "navn": "DNT Ringerike",
+      "type": "frivillig-organisasjon"
+    },
+    {
+      "tilbyderId": "honefoss-kino",
+      "navn": "Hønefoss kino",
+      "type": "kommersiell-aktør",
+      "kontakt": {
+        "telefon": "93 23 89 45"
+      }
+    },
+    {
+      "tilbyderId": "frivillighet-helse-og-omsorg",
+      "navn": "Frivillighet i helse og omsorg",
+      "type": "kommunal-frivillighetskoordinering",
+      "kontakt": {
+        "epost": "frivillig.helse@ringerike.kommune.no",
+        "telefon": "900 38 541"
+      }
+    }
+  ]
+}

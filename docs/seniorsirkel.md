@@ -1,0 +1,182 @@
+# Seniorsirkel: seniortilbudene i Ringerike
+
+Casen svarer på ett spørsmål for en innbygger over 62 i Ringerike: *hva finnes for meg
+her?* Den henter det kommunen tilbyr, sjekker hva innbyggeren har rett til, spør om det
+vi ikke vet, og foreslår tilbud som passer.
+
+Katalogen er `data/senioraktiviteter.json`. Skjemaet er **kommunens eget**, ikke vårt:
+det er hentet fra Ringerikes informasjonsmateriell, med sidereferanser i `kilder` og et
+`status`-felt som skiller det som er lest fra en kilde fra det som er laget for
+sandkassen. `apps/shared/senioraktivitet.ts` leser den formen og validerer den. Den
+skriver den ikke om.
+
+## Hva casen dekker
+
+Katalogen er bredere enn en sosial klubb. Den har `matombringing`,
+`bolig-og-hverdagsmestring` og `psykisk-helse-og-mestring` ved siden av turgrupper og
+seniorkino - altså hele kommunens seniortilbud. Det er med vilje: for en innbyggerportal
+er «hva finnes for meg» et bedre spørsmål enn «finnes det en klubb».
+
+## To lister, og hvorfor de ikke er like
+
+**Kommunens kategorier** står i katalogen. De er en tjenestetaksonomi:
+`friluftsliv-og-trening`, `digital-mestring`, `psykisk-helse-og-mestring`.
+
+**Interessegruppene** står i `data/seniorsirkel-grupper.json`. De er det innbyggeren blir
+spurt om:
+
+| `verdi` | `label` | Kommunens kategorier |
+|---|---|---|
+| `moeteplasser` | Møteplasser og sosialt fellesskap | `dagaktivitet`, `kultur-og-fellesskap` |
+| `friluft` | Friluft og fysisk aktivitet | `friluftsliv-og-trening`, `helse-og-trening` |
+| `kultur` | Kultur, læring og opplevelser | `kultur-og-fellesskap`, `digital-mestring` |
+| `frivillig` | Bidra i frivillig arbeid | `frivillighet-og-sosial-stotte` |
+| `hverdagsmestring` | Hjelp og mestring i hverdagen | `mat-og-ernaering`, `bolig-og-hverdagsmestring`, `psykisk-helse-og-mestring` |
+
+Grunnen til at de er to lister: en innbygger skal ikke bli spurt hvilken tjenestekategori
+et tilbud er sortert under. En kategori kan ligge i flere grupper - en sangkafé er både en
+møteplass og kultur.
+
+`scripts/valider-data.ts` måler de to mot hverandre, begge veier. En kategori uten gruppe
+er et tilbud ingen interesse kan treffe; en gruppe som peker på en kategori katalogen ikke
+har, er en valgmulighet uten innhold. Begge feilene er stille, så begge sjekkes.
+
+**Legger du til en kategori, må den inn i en gruppe.** Det er en dataendring, ikke en
+kodeendring. Det finnes med vilje ikke noe kodeverk for kategorier i `apps/shared`.
+
+## Skjemaet
+
+```json
+{
+  "kommunenavn": "Ringerike",
+  "kommunenummer": "3305",
+  "schemaVersjon": 1,
+  "aktiviteter": [
+    {
+      "aktivitetId": "seniorkino",
+      "navn": "Seniorkino",
+      "kategori": "kultur-og-fellesskap",
+      "beskrivelse": "Kinoforestilling på dagtid, med dempet lyd.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        { "maalgruppeId": "voksent-publikum", "gjelderAlle": false, "alder": { "fraAar": 60 } }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "seniorkino-honefoss-kino",
+          "tilbyderId": "honefoss-kino",
+          "status": "krever-verifisering",
+          "gjennomforing": { "former": ["kino"], "tilrettelegging": ["dempet-lyd", "dagtid"] },
+          "tidspunkter": [{ "ukedager": ["tirsdag"], "fraKlokkeslett": "12:00" }],
+          "tilgjengelighet": { "rullestol": true, "teleslynge": true }
+        }
+      ],
+      "kilder": [{ "tittel": "Informasjonsbrosjyre senior i Ringerike", "aar": 2024, "side": 7 }]
+    }
+  ],
+  "tilbydere": [
+    { "tilbyderId": "honefoss-kino", "navn": "Hønefoss kino", "type": "privat", "kontakt": {} }
+  ]
+}
+```
+
+### Hva som er påkrevd
+
+| Felt | Krav |
+|---|---|
+| `aktivitetId`, `tilbudId` | Unike i hele filen |
+| `navn`, `beskrivelse`, `kategori`, `opprinnelse`, `status` | Påkrevd. `kategori` er én verdi, ikke en liste |
+| `maalgrupper` | Minst én. `gjelderAlle: false` krever `alder` eller `kriterier` |
+| `tilbud` | Minst ett. `tilbyderId` må finnes i `tilbydere` |
+| `tidspunkter` | Valgfritt. Et kurs har ikke et fast ukentlig tidspunkt |
+| `tidspunkter[].ukedager` | Valgfritt. Utelatt betyr ikke bundet til bestemte dager |
+| `tidspunkter[].fraKlokkeslett` | `TT:MM`, påkrevd når det står et tidspunkt |
+| `tidspunkter[].tilKlokkeslett` | Valgfritt. En tur varer så lenge den varer |
+| `tidspunkter[].sesong` | Valgfritt, `{fraMaaned, tilMaaned}` 1-12. Kan gå over nyttår |
+| `paamelding` | Valgfritt. Utelatt betyr at det ikke kreves |
+| `kilder` | Påkrevd når `opprinnelse` er `kildebasert`, og **tom** når den er `syntetisk` |
+
+Den siste er en invariant i kommunens egne data, og verdt å holde: et kildebasert tilbud
+bærer sidereferansen sin, og et syntetisk eksempel skal ikke kunne skaffe seg en.
+`krever-verifisering` betyr at et menneske fortsatt skal se på raden, og da må det være
+synlig hva den hviler på.
+
+### Ukedag skrives uten æ, ø og å
+
+```
+mandag  tirsdag  onsdag  torsdag  fredag  loerdag  soendag
+```
+
+`loerdag` og `soendag`, ikke `lørdag` og `søndag`. Det er identifikatorer, og
+identifikatorer i dette repoet translittereres. Teksten en innbygger leser gjør det ikke -
+se [språkreglene i `AGENTS.md`](../AGENTS.md).
+
+## Tilgjengelighet har tre tilstander, ikke to
+
+```json
+"tilgjengelighet": { "rullestol": true, "teleslynge": false }
+```
+
+`true`, `false` - og **utelatt**, som betyr *ikke oppgitt*. De tre er forskjellige, og
+skillet er hele grunnen til at feltet er valgfritt framfor å ha en standardverdi:
+
+- Et hardt filter som leste «ikke oppgitt» som **nei** ville skjult tilbud en
+  rullestolbruker godt kan møte på.
+- Ett som leste det som **ja** ville sendt henne til et hun ikke kommer inn på.
+
+Ukjent bæres derfor videre som ukjent, og vises som «adkomst ikke oppgitt» framfor å bli
+gjettet. `spisevenn` er utelatt i katalogen i dag, fordi en frivillig som kommer hjem til
+deg ikke er kommunens adkomst å svare for. `pnpm test` krever at alle tre tilstandene
+finnes i katalogen, ellers er en gren i skåringen død kode.
+
+Fritekst i `gjennomforing.tilrettelegging` er **ikke** det samme: `dempet-lyd` og
+`skyss-ved-behov` sier noe nyttig, men et hardt filter må hvile på et felt som betyr ja
+eller nei.
+
+## Hvordan et tilbud blir foreslått
+
+Skåringen er deterministisk og ligger i kode. Modellen får de best skårende tilbudene og
+begrunnelseskodene, og skriver hvorfor de passer. **Den rangerer ikke, og avgjør ikke.**
+
+| | Virkning |
+|---|---|
+| `kommunenummer` | Hardt krav |
+| `tilgjengelighet.rullestol` | Hardt krav når innbyggeren har oppgitt behov, og bare når feltet er `false`. Ikke oppgitt filtrerer ikke |
+| `tilgjengelighet.teleslynge` | Mykt signal. Filtrering her ville skjult nesten hele katalogen |
+| `kategori` | Poeng når kategorien ligger i en gruppe innbyggeren valgte |
+| `maalgrupper` | Poeng når innbyggeren treffer målgruppen tilbudet er rettet mot |
+
+## Hvilken fil som leses
+
+`SENIORAKTIVITET_DATA_FILE`, med `senioraktiviteter.json` som standard.
+`data/senioraktiviteter.seed.json` er en fixtur på tre aktiviteter som testene peker på,
+og den er **generert som et utvalg fra den virkelige katalogen** framfor skrevet for
+hånd - da kan den ikke komme ut av form med skjemaet den skal pinne. Mønsteret er det
+samme som `MATRIKKEL_DATA_FILE` i [`apps/matrikkel-mock`](../apps/matrikkel-mock/README.md).
+
+Vil du prøve din egen versjon uten å røre repoet, legger du den i `state/` - `readJson`
+leter der først. Se [«Egne testdata» i `docs/bygg-selv.md`](bygg-selv.md). Men merk to
+ting: `pnpm test` validerer `data/`, ikke `state/`, og `./start.sh --reset` tømmer
+`state/`. Data som skal valideres og deles hører i `data/`.
+
+## Test filen din
+
+```bash
+node scripts/valider-data.ts
+SENIORAKTIVITET_DATA_FILE=min-katalog.json node scripts/valider-data.ts
+```
+
+Feiler den, navngir meldingen raden og hva som er galt.
+
+## Aldersgrensen står i satsene, ikke i katalogen
+
+Katalogen har `maalgrupper[].alder.fraAar`, og flere tilbud sier 60. Retten til
+seniorsirkelen avgjøres likevel av ordningen `seniorsirkel` i `data/satser.json`, som
+måler alder mot `malgruppeFraAar` på tilbudet i `data/tjenestetilbud.json` - 62 i
+Ringerike.
+
+De to er ikke i konflikt, men de er to tall: kommunens egen målgruppe for et enkelt tilbud,
+og vilkåret for ordningen. Vilkåret er det som avgjør, og det er
+`apps/sandbox-backend/src/vilkaar.ts` som eier det. Katalogens aldersfelt er et
+skåringssignal, ikke et vedtak.

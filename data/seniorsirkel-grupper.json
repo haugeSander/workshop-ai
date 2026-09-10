@@ -1,0 +1,36 @@
+{
+  "kilde": "Interessegruppene innbyggeren velger mellom i prosessen seniorsirkel-profil. Laget for sandkassen.",
+  "merknad": "Gruppene er vår presentasjon, kategoriene er kommunens taksonomi i data/senioraktiviteter.json. De to listene er med vilje ikke like: en innbygger blir spurt om hva hun er interessert i, ikke om hvilken tjenestekategori tilbudet er sortert under. En kategori kan ligge i flere grupper - en sangkafé er både en møteplass og kultur - og scripts/valider-data.ts krever at hver kategori i katalogen ligger i minst én gruppe, ellers finnes det tilbud ingen interesse kan treffe.",
+  "syntetisk": true,
+  "grupper": [
+    {
+      "verdi": "moeteplasser",
+      "label": "Møteplasser og sosialt fellesskap",
+      "kategorier": ["dagaktivitet", "kultur-og-fellesskap"]
+    },
+    {
+      "verdi": "friluft",
+      "label": "Friluft og fysisk aktivitet",
+      "kategorier": ["friluftsliv-og-trening", "helse-og-trening"]
+    },
+    {
+      "verdi": "kultur",
+      "label": "Kultur, læring og opplevelser",
+      "kategorier": ["kultur-og-fellesskap", "digital-mestring"]
+    },
+    {
+      "verdi": "frivillig",
+      "label": "Bidra i frivillig arbeid",
+      "kategorier": ["frivillighet-og-sosial-stotte"]
+    },
+    {
+      "verdi": "hverdagsmestring",
+      "label": "Hjelp og mestring i hverdagen",
+      "kategorier": [
+        "mat-og-ernaering",
+        "bolig-og-hverdagsmestring",
+        "psykisk-helse-og-mestring"
+      ]
+    }
+  ]
+}
