@@ -587,7 +587,7 @@ paths:
 
   /api/innbyggerportal/placeholder/registreringer:
     get:
-      summary: Hent mockregistreringer
+      summary: Hent innbyggerens mockregistreringer
       security:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
@@ -599,7 +599,7 @@ paths:
           schema: { type: string }
       responses:
         "200":
-          description: Tom, eksplisitt mockmerket registreringsrespons
+          description: Innbyggerens lagrede, eksplisitt mockmerkede registreringer
           content:
             application/json:
               schema:
@@ -618,8 +618,9 @@ paths:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
       description: >
-        Midlertidig placeholder. Validerer mocktilbudene og returnerer syntetiske
-        kvitteringer uten å lagre dem.
+        Midlertidig placeholder. Validerer mocktilbudene, lagrer syntetiske
+        registreringer og avviser ny påmelding til en aktivitet innbyggeren
+        allerede er påmeldt.
       requestBody:
         required: true
         content:
@@ -1983,6 +1984,12 @@ components:
             $ref: "#/components/schemas/PortalTilbyder"
         mock: { type: boolean, const: true }
         syntetisk: { type: boolean, const: true }
+        "409":
+          description: Innbyggeren er allerede påmeldt aktiviteten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
     Portalpreferanser:
       type: object
       required: [personId, ferdigstilt, kategorier, tilgjengeligeKategorier, mock, syntetisk]

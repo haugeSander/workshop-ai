@@ -71,6 +71,18 @@ export type Portalpreferanse = {
   oppdatert: string;
 };
 
+export type Portalregistrering = {
+  registreringId: string;
+  personId: string;
+  aktivitetId: string;
+  tilbudId: string;
+  navn: string;
+  status: "MOTTATT";
+  opprettet: string;
+  mock: true;
+  syntetisk: true;
+};
+
 const PORTALALDER = 62;
 const fallbackDataUrl = new URL("../../../aktivitetstilbud.json", import.meta.url);
 const backendDataUrl = new URL("../../../data/senioraktiviteter.json", import.meta.url);
@@ -116,6 +128,58 @@ export async function lagrePortalpreferanse(
     if (indeks === -1) preferanser.push(preferanse);
     else preferanser[indeks] = preferanse;
     return preferanse;
+  });
+}
+
+export async function hentPortalregistreringer(personId: string): Promise<Portalregistrering[]> {
+  const registreringer = await readJson("innbyggerportal-registreringer.json", []);
+  return registreringer
+    .filter((registrering: Portalregistrering) => registrering.personId === personId)
+    .map(normalizePortalregistrering);
+}
+
+function normalizePortalregistrering(registrering: Partial<Portalregistrering> & { tilbudId: string }): Portalregistrering {
+  const treff = finnPortaltilbud(registrering.tilbudId);
+  return {
+    registreringId: registrering.registreringId ?? `placeholder-registrering-${registrering.tilbudId}`,
+    personId: registrering.personId ?? "ukjent",
+    aktivitetId: registrering.aktivitetId ?? treff?.aktivitet.aktivitetId ?? registrering.tilbudId,
+    tilbudId: registrering.tilbudId,
+    navn: registrering.navn ?? treff?.tilbud.navn ?? treff?.aktivitet.navn ?? registrering.tilbudId,
+    status: "MOTTATT",
+    opprettet: registrering.opprettet ?? "2026-09-10T12:00:00.000Z",
+    mock: true,
+    syntetisk: true
+  };
+}
+
+export async function lagrePortalregistreringer(
+  personId: string,
+  valgte: { aktivitet: Seniortilbud; tilbud: Tilbud }[],
+  opprettet: string = new Date().toISOString()
+): Promise<Portalregistrering[]> {
+  return updateJson("innbyggerportal-registreringer.json", [], (registreringer: Portalregistrering[]) => {
+    const registrerteAktiviteter = new Set(
+      registreringer
+        .filter((registrering) => registrering.personId === personId)
+        .map((registrering) => normalizePortalregistrering(registrering).aktivitetId)
+    );
+    if (valgte.some(({ aktivitet }) => registrerteAktiviteter.has(aktivitet.aktivitetId))) {
+      throw new Error("Du er allerede påmeldt en av aktivitetene.");
+    }
+    const nye = valgte.map(({ aktivitet, tilbud }) => ({
+      registreringId: `placeholder-registrering-${personId}-${tilbud.tilbudId}`,
+      personId,
+      aktivitetId: aktivitet.aktivitetId,
+      tilbudId: tilbud.tilbudId,
+      navn: tilbud.navn ?? aktivitet.navn,
+      status: "MOTTATT" as const,
+      opprettet,
+      mock: true as const,
+      syntetisk: true as const
+    }));
+    registreringer.push(...nye);
+    return nye;
   });
 }
 

@@ -60,8 +60,29 @@ type Kontaktinfo = {
   tlf?: { nummer?: string } | null;
 };
 
+type Portalregistrering = {
+  registreringId: string;
+  aktivitetId: string;
+  tilbudId: string;
+  navn: string;
+  status: "MOTTATT";
+  opprettet: string;
+};
+
+type Registreringsrespons = {
+  registreringer: Portalregistrering[];
+  sporingsId?: string;
+};
+
 const statusEl = krevEl("status");
 const introEl = krevEl("intro");
+const portalfanerEl = krevEl("portalfaner");
+const aktiviteterFane = krevEl<HTMLButtonElement>("aktiviteter-fane");
+const paameldingerFane = krevEl<HTMLButtonElement>("paameldinger-fane");
+const aktiviteterPanelEl = krevEl("aktiviteter-panel");
+const paameldingerPanelEl = krevEl("paameldinger-panel");
+const paameldingerEl = krevEl("paameldinger");
+const ingenPaameldingerEl = krevEl("ingenPaameldinger");
 const preferanseseksjonEl = krevEl("preferanseseksjon");
 const preferansevalgEl = krevEl("preferansevalg");
 const preferansefeilEl = krevEl("preferansefeil");
@@ -80,6 +101,7 @@ const kvitteringEl = krevEl("kvittering");
 let person: Portalperson;
 let portal: Portalrespons;
 let preferanser: Portalpreferanser;
+let registreringer: Portalregistrering[] = [];
 let valgtTilbudId: string | null = null;
 
 const kategorinavn: Record<string, string> = {
@@ -233,6 +255,35 @@ function visAktivitetslister(): void {
   andretilbudsseksjonEl.hidden = portal.andreAktiviteter.length === 0;
 }
 
+function renderRegistreringer(): void {
+  paameldingerEl.replaceChildren();
+  ingenPaameldingerEl.hidden = registreringer.length > 0;
+  for (const registrering of registreringer) {
+    const kort = element("article", "ds-card portal-card");
+    const innhold = element("div", "ds-card__block");
+    innhold.append(
+      element("h3", "ds-heading", registrering.navn),
+      element("p", "portal-meta", `Påmeldt ${formatDato(registrering.opprettet.slice(0, 10))}`),
+      element("p", "ds-paragraph", "Påmeldingen er mottatt.")
+    );
+    kort.append(innhold);
+    paameldingerEl.append(kort);
+  }
+  paameldingerFane.textContent = registreringer.length > 0
+    ? `Mine påmeldinger (${registreringer.length})`
+    : "Mine påmeldinger";
+}
+
+function visFane(fane: "aktiviteter" | "paameldinger"): void {
+  const viserAktiviteter = fane === "aktiviteter";
+  aktiviteterFane.setAttribute("aria-selected", String(viserAktiviteter));
+  aktiviteterFane.tabIndex = viserAktiviteter ? 0 : -1;
+  paameldingerFane.setAttribute("aria-selected", String(!viserAktiviteter));
+  paameldingerFane.tabIndex = viserAktiviteter ? -1 : 0;
+  aktiviteterPanelEl.hidden = !viserAktiviteter;
+  paameldingerPanelEl.hidden = viserAktiviteter;
+}
+
 function renderPreferanser(): void {
   preferansevalgEl.replaceChildren();
   for (const kategori of preferanser.tilgjengeligeKategorier) {
@@ -316,10 +367,14 @@ async function bekreftPaamelding(): Promise<void> {
   if (!valgtTilbudId) return;
   bekreftKnapp.disabled = true;
   try {
-    const svar = await api<{ sporingsId: string }>(PORTAL_ENDPOINTS.registreringer, {
+    const svar = await api<Registreringsrespons>(PORTAL_ENDPOINTS.registreringer, {
       method: "POST",
       body: JSON.stringify({ tilbudIder: [valgtTilbudId] })
     });
+    [portal, registreringer] = await Promise.all([
+      api<Portalrespons>(tilbudssti()),
+      api<Registreringsrespons>(PORTAL_ENDPOINTS.registreringer).then((respons) => respons.registreringer)
+    ]);
     valgtTilbudId = null;
     paameldingsseksjonEl.hidden = true;
     const varsel = element("div", "ds-alert");
@@ -329,6 +384,8 @@ async function bekreftPaamelding(): Promise<void> {
       element("p", "ds-paragraph", `Kvittering: ${svar.sporingsId}`)
     );
     kvitteringEl.replaceChildren(varsel);
+    renderAnbefalinger();
+    renderRegistreringer();
     visAktivitetslister();
     kvitteringEl.scrollIntoView({ behavior: "smooth", block: "start" });
   } finally {
@@ -344,10 +401,11 @@ function avbrytPaamelding(): void {
 
 async function start(): Promise<void> {
   if (!(await requireLogin())) return;
-  [person, portal, preferanser] = await Promise.all([
+  [person, portal, preferanser, registreringer] = await Promise.all([
     api<Portalperson>(PORTAL_ENDPOINTS.meg),
     api<Portalrespons>(tilbudssti()),
-    api<Portalpreferanser>(PORTAL_ENDPOINTS.preferanser)
+    api<Portalpreferanser>(PORTAL_ENDPOINTS.preferanser),
+    api<Registreringsrespons>(PORTAL_ENDPOINTS.registreringer).then((respons) => respons.registreringer)
   ]);
   krevEl("merkenavn").textContent = `${person.bostedsadresse?.kommune ?? "Min"} aktivitetsportal`;
   krevEl("tittel").textContent = `Hei, ${person.visningsnavn}`;
@@ -365,6 +423,8 @@ async function start(): Promise<void> {
   }
   statusEl.hidden = true;
   introEl.hidden = false;
+  portalfanerEl.hidden = false;
+  renderRegistreringer();
   if (portal.portalTilgjengelig) {
     if (preferanser.ferdigstilt) renderAnbefalinger();
     else visPreferanser(false);
@@ -375,6 +435,17 @@ async function start(): Promise<void> {
 }
 
 krevEl<HTMLButtonElement>("byttBruker").addEventListener("click", switchUser);
+aktiviteterFane.addEventListener("click", () => visFane("aktiviteter"));
+paameldingerFane.addEventListener("click", () => visFane("paameldinger"));
+for (const fane of [aktiviteterFane, paameldingerFane]) {
+  fane.addEventListener("keydown", (hendelse) => {
+    if (hendelse.key !== "ArrowLeft" && hendelse.key !== "ArrowRight") return;
+    hendelse.preventDefault();
+    const neste = fane === aktiviteterFane ? paameldingerFane : aktiviteterFane;
+    neste.click();
+    neste.focus();
+  });
+}
 lagrePreferanserKnapp.addEventListener("click", () => void lagrePreferanser());
 avbrytPreferanserKnapp.addEventListener("click", () => {
   preferanseseksjonEl.hidden = true;

@@ -28,8 +28,10 @@ import {
   hentAktivitetskategorier,
   hentAktivitetskatalog,
   hentPortalpreferanse,
+  hentPortalregistreringer,
   hentPortaltilbud,
-  lagrePortalpreferanse
+  lagrePortalpreferanse,
+  lagrePortalregistreringer
 } from "./innbyggerportal.ts";
 import {
   buildProsessoektRespons,
@@ -483,12 +485,22 @@ const ruter: Rute[] = [
       const preferanse = await hentPortalpreferanse(person.personId);
       const resultat = portalalder(person, preferanse?.kategorier ?? []);
       const alleTilgjengelige = portalalder(person).aktiviteter;
+      const registreringer = await hentPortalregistreringer(person.personId);
+      const registrerteAktivitetIder = new Set(registreringer.map((registrering) => registrering.aktivitetId));
+      resultat.aktiviteter = resultat.aktiviteter.filter(
+        (aktivitet) => !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+      );
       const anbefalteIder = new Set(resultat.aktiviteter.map((aktivitet) => aktivitet.aktivitetId));
       const andreAktiviteter = preferanse
-        ? alleTilgjengelige.filter((aktivitet) => !anbefalteIder.has(aktivitet.aktivitetId))
+        ? alleTilgjengelige.filter((aktivitet) =>
+            !anbefalteIder.has(aktivitet.aktivitetId)
+            && !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+          )
         : [];
       const valgtTilbudId = url.searchParams.get("tilbudId");
       const valgtAktivitet = alleTilgjengelige.find((aktivitet) =>
+        !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+        &&
         aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === valgtTilbudId)
       ) ?? null;
       await addRevisjon({
@@ -564,9 +576,10 @@ const ruter: Rute[] = [
   {
     metode: "GET",
     sti: "/api/innbyggerportal/placeholder/registreringer",
-    handter: ({ response, url, tilstand, kaller }) => {
-      portalperson(tilstand, kaller, url.searchParams.get("personId"));
-      jsonResponse(response, 200, { registreringer: [], mock: true, syntetisk: true });
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const registreringer = await hentPortalregistreringer(person.personId);
+      jsonResponse(response, 200, { registreringer, mock: true, syntetisk: true });
     }
   },
   {
@@ -592,17 +605,12 @@ const ruter: Rute[] = [
         }
         return treff;
       });
-      const opprettet = valgte.map(({ aktivitet, tilbud }) => ({
-        registreringId: `placeholder-registrering-${tilbud.tilbudId}`,
-        personId: person.personId,
-        aktivitetId: aktivitet.aktivitetId,
-        tilbudId: tilbud.tilbudId,
-        navn: tilbud.navn ?? aktivitet.navn,
-        status: "MOTTATT",
-        opprettet: "2026-09-10T12:00:00.000Z",
-        mock: true,
-        syntetisk: true
-      }));
+      let opprettet;
+      try {
+        opprettet = await lagrePortalregistreringer(person.personId, valgte);
+      } catch (feil) {
+        throw new HttpError(feil instanceof Error ? feil.message : "Kunne ikke registrere påmeldingen.", 409);
+      }
       const sporingsId = getSporingsId(url);
       await addRevisjon({
         sporingsId,

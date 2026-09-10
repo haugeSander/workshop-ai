@@ -62,6 +62,14 @@
           <p class="ds-paragraph" data-size="lg" id="ingress"></p>
         </header>
 
+        <div class="ds-tabs" id="portalfaner" hidden>
+          <div role="tablist" aria-label="Aktivitetsportalen">
+            <button type="button" role="tab" id="aktiviteter-fane" aria-controls="aktiviteter-panel" aria-selected="true">Finn aktiviteter</button>
+            <button type="button" role="tab" id="paameldinger-fane" aria-controls="paameldinger-panel" aria-selected="false" tabindex="-1">Mine påmeldinger</button>
+          </div>
+        </div>
+
+        <div role="tabpanel" id="aktiviteter-panel" aria-labelledby="aktiviteter-fane">
         <section class="portal-section" id="preferanseseksjon" hidden aria-labelledby="preferanse-tittel">
           <div>
             <h2 class="ds-heading" data-size="lg" id="preferanse-tittel">Hva er du interessert i?</h2>
@@ -114,6 +122,16 @@
         </section>
 
         <div id="kvittering" aria-live="polite"></div>
+        </div>
+
+        <section class="portal-section" role="tabpanel" id="paameldinger-panel" aria-labelledby="paameldinger-fane" hidden>
+          <div>
+            <h2 class="ds-heading" data-size="md">Mine påmeldinger</h2>
+            <p class="ds-paragraph">Aktiviteter du allerede er påmeldt.</p>
+          </div>
+          <div class="portal-grid" id="paameldinger"></div>
+          <p class="ds-paragraph" id="ingenPaameldinger" hidden>Du er ikke påmeldt noen aktiviteter ennå.</p>
+        </section>
       </main>
 
       <footer class="portal-footer">
