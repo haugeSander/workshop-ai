@@ -909,14 +909,21 @@ async function run() {
   // --- imported: households come out of the household-neighbour graph -------
   const kuraterteFnr = new Set(kuraterteMedlemmer.map((m: any) => m.fnr));
   const kuraterteHusstandIder = new Set(kuratert.husstander.map((h: any) => h.husstandId));
+  // Taket leses fra de kuraterte id-ene og fra ledgeren, ikke fra tallene 51 og 18.
+  // De to var de kuraterte takene da bare person-001..051 fantes, og en kuratert rad
+  // over ledgerens topp fikk derfor tildelt sin egen id til neste importerte person.
+  // Kollisjonen ville vist seg som «er både kuratert og importert» i valider-data,
+  // ett hakk fra stedet den ble laget.
+  const kuratertTak = (ider: string[]) =>
+    Math.max(0, ...ider.map((id) => Number(String(id).split("-").pop())).filter(Number.isFinite));
   let nestePerson = Math.max(
-    51,
+    kuratertTak(kuratert.personer.map((p: any) => p.personId)),
     ...[...ledger.personId.values()].map((id) => Number(String(id).split("-").pop()))
   ) + 1;
   // 25 personer har husstandId null, og må ha det. Number("null") er NaN, og uten
   // filteret ble hver ny husstand «household-NaN».
   let nesteHusstand = Math.max(
-    18,
+    kuratertTak(kuratert.husstander.map((h: any) => h.husstandId)),
     ...[...ledger.husstandId.values()]
       .filter(Boolean)
       .map((id) => Number(String(id).split("-").pop()))
