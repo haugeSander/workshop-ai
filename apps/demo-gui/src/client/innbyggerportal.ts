@@ -83,6 +83,7 @@ const aktiviteterPanelEl = krevEl("aktiviteter-panel");
 const paameldingerPanelEl = krevEl("paameldinger-panel");
 const paameldingerEl = krevEl("paameldinger");
 const ingenPaameldingerEl = krevEl("ingenPaameldinger");
+const paameldingsstatusEl = krevEl("paameldingsstatus");
 const preferanseseksjonEl = krevEl("preferanseseksjon");
 const preferansevalgEl = krevEl("preferansevalg");
 const preferansefeilEl = krevEl("preferansefeil");
@@ -266,12 +267,49 @@ function renderRegistreringer(): void {
       element("p", "portal-meta", `Påmeldt ${formatDato(registrering.opprettet.slice(0, 10))}`),
       element("p", "ds-paragraph", "Påmeldingen er mottatt.")
     );
+    const fjernKnapp = element("button", "ds-button", "Fjern påmelding") as HTMLButtonElement;
+    fjernKnapp.type = "button";
+    fjernKnapp.dataset.variant = "secondary";
+    fjernKnapp.dataset.color = "danger";
+    fjernKnapp.addEventListener("click", () => void fjernPaamelding(registrering, fjernKnapp));
+    innhold.append(fjernKnapp);
     kort.append(innhold);
     paameldingerEl.append(kort);
   }
   paameldingerFane.textContent = registreringer.length > 0
     ? `Mine påmeldinger (${registreringer.length})`
     : "Mine påmeldinger";
+}
+
+async function fjernPaamelding(
+  registrering: Portalregistrering,
+  knapp: HTMLButtonElement
+): Promise<void> {
+  knapp.disabled = true;
+  paameldingsstatusEl.replaceChildren();
+  try {
+    await api(`${PORTAL_ENDPOINTS.registreringer}/${encodeURIComponent(registrering.registreringId)}`, {
+      method: "DELETE"
+    });
+    [portal, registreringer] = await Promise.all([
+      api<Portalrespons>(tilbudssti()),
+      api<Registreringsrespons>(PORTAL_ENDPOINTS.registreringer).then((respons) => respons.registreringer)
+    ]);
+    renderAnbefalinger();
+    renderRegistreringer();
+    const varsel = element("div", "ds-alert");
+    varsel.dataset.color = "success";
+    varsel.append(element("p", "ds-paragraph", `Påmeldingen til ${registrering.navn} er fjernet.`));
+    paameldingsstatusEl.replaceChildren(varsel);
+  } catch (feil) {
+    knapp.disabled = false;
+    const varsel = element("div", "ds-alert");
+    varsel.dataset.color = "danger";
+    varsel.append(
+      element("p", "ds-paragraph", feil instanceof Error ? feil.message : "Kunne ikke fjerne påmeldingen.")
+    );
+    paameldingsstatusEl.replaceChildren(varsel);
+  }
 }
 
 function visFane(fane: "aktiviteter" | "paameldinger"): void {

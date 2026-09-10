@@ -183,6 +183,20 @@ export async function lagrePortalregistreringer(
   });
 }
 
+export async function fjernPortalregistrering(
+  personId: string,
+  registreringId: string
+): Promise<Portalregistrering | null> {
+  return updateJson("innbyggerportal-registreringer.json", [], (registreringer: Portalregistrering[]) => {
+    const indeks = registreringer.findIndex(
+      (registrering) => registrering.personId === personId && registrering.registreringId === registreringId
+    );
+    if (indeks === -1) return null;
+    const [fjernet] = registreringer.splice(indeks, 1);
+    return normalizePortalregistrering(fjernet);
+  });
+}
+
 export function hentAktivitetskatalog() {
   return {
     kommunenavn: KOMMUNENAVN,

@@ -24,6 +24,7 @@ import {
 import { openapiFile } from "./config.ts";
 import { routeOverview } from "../../shared/openapi.ts";
 import {
+  fjernPortalregistrering,
   finnPortaltilbud,
   hentAktivitetskategorier,
   hentAktivitetskatalog,
@@ -623,6 +624,32 @@ const ruter: Rute[] = [
       });
       jsonResponse(response, 201, {
         registreringer: opprettet,
+        sporingsId,
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "DELETE",
+    sti: "/api/innbyggerportal/placeholder/registreringer/:registreringId",
+    handter: async ({ response, url, parametere, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const fjernet = await fjernPortalregistrering(person.personId, parametere.registreringId);
+      if (!fjernet) {
+        throw new HttpError("Fant ikke påmeldingen.", 404);
+      }
+      const sporingsId = getSporingsId(url);
+      await addRevisjon({
+        sporingsId,
+        handling: "PORTALREGISTRERING_FJERNET",
+        ressurs: "innbyggerportal-registrering",
+        formaal: "Avslutte en påmelding etter ønske fra innbyggeren",
+        gjaldt: person.personId,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 200, {
+        registrering: fjernet,
         sporingsId,
         mock: true,
         syntetisk: true

@@ -604,7 +604,6 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [registreringer, mock, syntetisk]
                 properties:
                   registreringer:
                     type: array
@@ -656,6 +655,50 @@ paths:
           description: Ingen gyldige tilbud ble valgt
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
+        "409":
+          description: Innbyggeren er allerede påmeldt aktiviteten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
+  /api/innbyggerportal/placeholder/registreringer/{registreringId}:
+    delete:
+      summary: Fjern en mockregistrering
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Fjerner registreringen bare når den tilhører innbyggeren det autentiserte
+        kallet gjelder. Aktiviteten blir deretter tilgjengelig for påmelding igjen.
+      parameters:
+        - name: registreringId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: personId
+          in: query
+          required: false
+          description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Registreringen er fjernet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [registrering, sporingsId, mock, syntetisk]
+                properties:
+                  registrering:
+                    $ref: "#/components/schemas/Portalregistrering"
+                  sporingsId: { type: string }
+                  mock: { type: boolean, const: true }
+                  syntetisk: { type: boolean, const: true }
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
 
   /api/personer/{personId}/husstand:
     get:
