@@ -65,16 +65,10 @@ type Aktivitetsdata = {
 };
 
 const PORTALALDER = 62;
-const fallbackDataUrl = new URL("../../../aktivitetstilbud.json", import.meta.url);
-const backendDataUrl = new URL("../../../data/senioraktiviteter.json", import.meta.url);
+const dataUrl = new URL("../../../data/senioraktiviteter.json", import.meta.url);
 
 async function readKatalog(): Promise<Aktivitetsdata> {
-  try {
-    return JSON.parse(await readFile(backendDataUrl, "utf8")) as Aktivitetsdata;
-  } catch (feil) {
-    if ((feil as NodeJS.ErrnoException).code !== "ENOENT") throw feil;
-    return JSON.parse(await readFile(fallbackDataUrl, "utf8")) as Aktivitetsdata;
-  }
+  return JSON.parse(await readFile(dataUrl, "utf8")) as Aktivitetsdata;
 }
 
 const katalog = await readKatalog();
