@@ -1,0 +1,598 @@
+{
+  "aktiviteter": [
+    {
+      "aktivitetId": "matombringing",
+      "navn": "Matombringing",
+      "kategori": "mat-og-ernaering",
+      "beskrivelse": "Levering av middag til hjemmeboende, med mulighet for suppe, dessert og tilrettelagte dietter.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "eldre-hjemmeboende",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 65
+          },
+          "kriterier": [
+            {
+              "type": "bosted",
+              "verdier": ["hjemmeboende"]
+            }
+          ]
+        },
+        {
+          "maalgruppeId": "personer-med-nedsatt-funksjonsevne",
+          "gjelderAlle": false,
+          "kriterier": [
+            {
+              "type": "funksjonsevne",
+              "verdier": ["nedsatt-funksjonsevne"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "matombringing-ringerikskjokken",
+          "tilbyderId": "ringerikskjokken",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["middagslevering"],
+            "tilrettelegging": [
+              "ulike-dietter-pa-foresporsel",
+              "suppe-og-dessert-kan-bestilles"
+            ]
+          },
+          "tidspunkter": [
+            {
+              "ukedager": ["fredag"],
+              "fraKlokkeslett": "10:00",
+              "tilKlokkeslett": "12:00"
+            }
+          ],
+          "paamelding": {
+            "kreves": true,
+            "kontakt": {
+              "telefon": "32 11 18 15"
+            }
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 7
+        }
+      ]
+    },
+    {
+      "aktivitetId": "mestringskurs-psykisk-helse",
+      "navn": "Mestringskurs for psykisk helse",
+      "kategori": "psykisk-helse-og-mestring",
+      "beskrivelse": "Kurs som skal forebygge og støtte mestring av depresjon gjennom arbeid med tanker, følelser, handlinger og hyggelige aktiviteter.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "personer-over-60-aar",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": []
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "takk-bare-bra-ringerike-kommune",
+          "tilbyderId": "ringerike-kommune",
+          "navn": "Mestringskurset «Takk, bare bra»",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["kurs", "gruppetilbud"],
+            "antallSamlinger": 10,
+            "frekvens": "ukentlig",
+            "varighetPerSamlingMinutter": 120,
+            "inkludererServering": true
+          },
+          "pris": {
+            "type": "delvis-betaling",
+            "kursBeloepKr": 0,
+            "annetBeloepKr": 300,
+            "beskrivelse": "Kursbok betales av deltakeren."
+          },
+          "paamelding": {
+            "kreves": true,
+            "kreverLegehenvisning": false,
+            "forhaandssamtale": true,
+            "kontakter": [
+              {
+                "navn": "Tone Moi",
+                "telefon": "901 14 142"
+              },
+              {
+                "navn": "Jorun Fredriksen",
+                "telefon": "477 85 378"
+              }
+            ]
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 11
+        }
+      ]
+    },
+    {
+      "aktivitetId": "digital-veiledning",
+      "navn": "Digital veiledning",
+      "kategori": "digital-mestring",
+      "beskrivelse": "Opplæring og veiledning i bruk av telefon, nettbrett, apper og digitale tjenester.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "eldre-med-behov-for-digital-stotte",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": [
+            {
+              "type": "behov",
+              "verdier": ["digital-veiledning"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "digital-veiledning-seniornett-honefoss",
+          "tilbyderId": "seniornett-honefoss",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["gruppeopplæring", "individuell-veiledning"],
+            "temaer": [
+              "telefon",
+              "nettbrett",
+              "nedlasting-av-apper",
+              "digitale-tjenester"
+            ]
+          },
+          "steder": [
+            { "navn": "Nes" },
+            { "navn": "Hallingby" },
+            { "navn": "Tyristrand" },
+            { "navn": "Sokna" },
+            { "navn": "Haugsbygd" },
+            { "navn": "Ringerike bibliotek i Hønefoss" },
+            { "navn": "Hov gård" }
+          ],
+          "pris": {
+            "type": "gratis",
+            "beloepKr": 0
+          },
+          "kontakt": {
+            "epost": "seniornett.honefoss@gmail.com"
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 24
+        }
+      ]
+    },
+    {
+      "aktivitetId": "lavterskel-turgruppe",
+      "navn": "Lavterskel turgruppe",
+      "kategori": "friluftsliv-og-trening",
+      "beskrivelse": "Felles turer i nærområdet med frivillige turledere og tilpasset tempo.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "seniorer",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": []
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "dnt-ringerike-seniorgruppa",
+          "tilbyderId": "dnt-ringerike",
+          "navn": "DNT Ringerike Seniorgruppa",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["lavterskeltur", "fottur"],
+            "tilrettelegging": [
+              "turledere-med-lokalkunnskap",
+              "turleder-utdannet-for-naerturer"
+            ]
+          },
+          "tidspunkter": [
+            {
+              "ukedager": ["tirsdag"],
+              "fraKlokkeslett": "09:30",
+              "sesong": {
+                "fraMaaned": 4,
+                "tilMaaned": 10
+              }
+            }
+          ],
+          "steder": [
+            {
+              "navn": "Hønefoss Idrettspark",
+              "rolle": "oppmøtested"
+            }
+          ],
+          "kontakt": {
+            "nettside": "https://dntringerike.no/senior/",
+            "besoksadresse": "Storgata 6"
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 27
+        }
+      ]
+    },
+    {
+      "aktivitetId": "seniorkino",
+      "navn": "Seniorkino",
+      "kategori": "kultur-og-fellesskap",
+      "beskrivelse": "Filmvisning på dagtid med dempet lyd og behagelige omgivelser.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "voksent-publikum",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 60
+          },
+          "kriterier": []
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "seniorkino-honefoss-kino",
+          "tilbyderId": "honefoss-kino",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["kino"],
+            "tilrettelegging": ["dempet-lyd", "dagtid"]
+          },
+          "kontakt": {
+            "telefon": "93 23 89 45",
+            "nettside": "https://www.nfkino.no"
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 21
+        }
+      ]
+    },
+    {
+      "aktivitetId": "dagaktivitet-med-trening-og-kultur",
+      "navn": "Dagaktivitet med trening og kultur",
+      "kategori": "dagaktivitet",
+      "beskrivelse": "Dagaktivitet med fysisk trening, hobbyvirksomhet, sang, musikk, turer, sosialt samvær og felles måltid.",
+      "opprinnelse": "kildebasert",
+      "status": "krever-verifisering",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "personer-med-behov-for-dagaktivitet",
+          "gjelderAlle": false,
+          "kriterier": [
+            {
+              "type": "bistandsbehov",
+              "verdier": ["behov-for-meningsfull-hverdag"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "aktivitetssenteret-gleden",
+          "tilbyderId": "ringerike-kommune",
+          "navn": "Aktivitetssenteret Gleden",
+          "status": "krever-verifisering",
+          "gjennomforing": {
+            "former": ["dagaktivitet", "gruppetrening", "sosialt-samvaer"],
+            "temaer": [
+              "trim",
+              "treningssenter",
+              "trening-i-gymsal",
+              "hobbyvirksomhet",
+              "sang",
+              "musikk",
+              "felles-maltid",
+              "turer"
+            ],
+            "tilrettelegging": ["skyss-ved-behov"]
+          },
+          "steder": [
+            {
+              "navn": "Austjord",
+              "adresse": "Lundstadveien 68",
+              "postnummer": "3514",
+              "poststed": "Hønefoss"
+            }
+          ],
+          "tidspunkter": [
+            {
+              "fraKlokkeslett": "08:30",
+              "tilKlokkeslett": "15:00"
+            }
+          ],
+          "pris": {
+            "type": "betalingstjeneste"
+          },
+          "paamelding": {
+            "kreves": true,
+            "metode": "soknad",
+            "behandlesAv": "Tildelingskontoret for helse- og omsorgstjenester"
+          },
+          "kontakt": {
+            "telefon": "468 15 854"
+          }
+        }
+      ],
+      "kilder": [
+        {
+          "tittel": "Informasjonsbrosjyre senior i Ringerike",
+          "aar": 2024,
+          "side": 39
+        }
+      ]
+    },
+    {
+      "aktivitetId": "balanse-og-fallforebyggende-trening",
+      "navn": "Balanse- og fallforebyggende trening",
+      "kategori": "helse-og-trening",
+      "beskrivelse": "Trening med øvelser for styrke, balanse, gange og bevegelighet.",
+      "opprinnelse": "syntetisk",
+      "status": "syntetisk-eksempel",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "eldre-med-onske-om-fallforebygging",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 65
+          },
+          "kriterier": [
+            {
+              "type": "interesse",
+              "verdier": ["fallforebygging", "balansetrening"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "balansetrening-kommunalt-gruppetilbud",
+          "tilbyderId": "ringerike-kommune",
+          "status": "syntetisk-eksempel",
+          "gjennomforing": {
+            "former": ["gruppetrening"],
+            "temaer": [
+              "reise-seg-fra-stol",
+              "taheving",
+              "balanse-pa-ett-ben",
+              "gangetrening",
+              "bevegelighet"
+            ]
+          },
+          "paamelding": {
+            "kreves": true,
+            "informasjon": "Tidspunkt, sted og påmeldingsmåte må avklares."
+          }
+        }
+      ],
+      "inspirertAv": [
+        "fallforebygging",
+        "gruppetreninger",
+        "fysisk aktivitet og trening"
+      ]
+    },
+    {
+      "aktivitetId": "sangkafe-og-sosialt-samvaer",
+      "navn": "Sangkafé og sosialt samvær",
+      "kategori": "kultur-og-fellesskap",
+      "beskrivelse": "Sosial møteplass med sang, kaffe og mulighet for samtale.",
+      "opprinnelse": "syntetisk",
+      "status": "syntetisk-eksempel",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "eldre-som-onsker-fellesskap",
+          "gjelderAlle": false,
+          "alder": {
+            "fraAar": 65
+          },
+          "kriterier": [
+            {
+              "type": "interesse",
+              "verdier": ["sosialt-fellesskap", "musikk-og-sang"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "sangkafe-frivillighet-helse",
+          "tilbyderId": "frivillighet-helse-og-omsorg",
+          "status": "syntetisk-eksempel",
+          "gjennomforing": {
+            "former": ["møteplass", "gruppetilbud"],
+            "temaer": ["sang", "musikk", "sosialt-samvaer"]
+          },
+          "pris": {
+            "type": "ukjent"
+          }
+        }
+      ],
+      "inspirertAv": [
+        "sangkafé eller eldrekafé",
+        "musikkinnslag",
+        "frivillighet i helse og omsorg"
+      ]
+    },
+    {
+      "aktivitetId": "spisevenn",
+      "navn": "Spisevenn",
+      "kategori": "frivillighet-og-sosial-stotte",
+      "beskrivelse": "En frivillig deler et måltid og sosialt samvær med en person som ønsker selskap.",
+      "opprinnelse": "syntetisk",
+      "status": "syntetisk-eksempel",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "personer-som-onsker-selskap-ved-maltid",
+          "gjelderAlle": false,
+          "kriterier": [
+            {
+              "type": "behov",
+              "verdier": ["sosial-kontakt"]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "spisevenn-frivillighet-helse",
+          "tilbyderId": "frivillighet-helse-og-omsorg",
+          "status": "syntetisk-eksempel",
+          "gjennomforing": {
+            "former": ["frivillig-oppdrag", "individuell-oppfolging"]
+          },
+          "paamelding": {
+            "kreves": true,
+            "informasjon": "Match mellom frivillig og deltaker må avklares."
+          }
+        }
+      ],
+      "inspirertAv": [
+        "spisevenn",
+        "besøksvenn og sosial kontakt"
+      ]
+    },
+    {
+      "aktivitetId": "boligtilpasning-og-tryggere-hjem",
+      "navn": "Veiledning om boligtilpasning og tryggere hjem",
+      "kategori": "bolig-og-hverdagsmestring",
+      "beskrivelse": "Veiledning om tilgjengelighet, fallforebygging og praktiske tilpasninger i egen bolig.",
+      "opprinnelse": "syntetisk",
+      "status": "syntetisk-eksempel",
+      "maalgrupper": [
+        {
+          "maalgruppeId": "personer-med-behov-for-tilgjengelig-bolig",
+          "gjelderAlle": false,
+          "kriterier": [
+            {
+              "type": "behov",
+              "verdier": [
+                "tilgjengelig-bolig",
+                "tryggere-hjem",
+                "tilpasning-av-bolig"
+              ]
+            }
+          ]
+        }
+      ],
+      "tilbud": [
+        {
+          "tilbudId": "boligtilpasning-kommunal-veiledning",
+          "tilbyderId": "ringerike-kommune",
+          "status": "syntetisk-eksempel",
+          "gjennomforing": {
+            "former": ["veiledning"],
+            "temaer": [
+              "trinnfri-adkomst",
+              "terskler-og-dorer",
+              "belysning",
+              "bad",
+              "kjokken",
+              "rekkverk",
+              "hjelpemidler"
+            ]
+          },
+          "paamelding": {
+            "kreves": false,
+            "informasjon": "Ansvarlig enhet og kontaktmåte må avklares."
+          }
+        }
+      ],
+      "inspirertAv": [
+        "en tilgjengelig bolig",
+        "tilpasning av bolig",
+        "fallforebygging"
+      ]
+    }
+  ],
+  "tilbydere": [
+    {
+      "tilbyderId": "ringerike-kommune",
+      "navn": "Ringerike kommune",
+      "type": "kommune",
+      "kontakt": {
+        "rolle": "servicetorg",
+        "telefon": "32 11 74 00"
+      }
+    },
+    {
+      "tilbyderId": "ringerikskjokken",
+      "navn": "Ringerikskjøkken",
+      "type": "kommunal-tjeneste",
+      "kontakt": {
+        "telefon": "32 11 18 15"
+      }
+    },
+    {
+      "tilbyderId": "seniornett-honefoss",
+      "navn": "Seniornett Hønefoss",
+      "type": "frivillig-organisasjon",
+      "kontakt": {
+        "epost": "seniornett.honefoss@gmail.com"
+      }
+    },
+    {
+      "tilbyderId": "dnt-ringerike",
+      "navn": "DNT Ringerike",
+      "type": "frivillig-organisasjon"
+    },
+    {
+      "tilbyderId": "honefoss-kino",
+      "navn": "Hønefoss kino",
+      "type": "kommersiell-aktør",
+      "kontakt": {
+        "telefon": "93 23 89 45"
+      }
+    },
+    {
+      "tilbyderId": "frivillighet-helse-og-omsorg",
+      "navn": "Frivillighet i helse og omsorg",
+      "type": "kommunal-frivillighetskoordinering",
+      "kontakt": {
+        "epost": "frivillig.helse@ringerike.kommune.no",
+        "telefon": "900 38 541"
+      }
+    }
+  ]
+}

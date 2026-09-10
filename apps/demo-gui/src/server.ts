@@ -40,6 +40,7 @@ const KLIENTFILER: Record<string, string> = {
   "agent.ts": KLIENTSKRIPT,
   "utforsker.ts": KLIENTSKRIPT,
   "ds-eksempel.ts": KLIENTSKRIPT,
+  "innbyggerportal.ts": KLIENTSKRIPT,
   "callback.ts": KLIENTSKRIPT
 };
 
@@ -55,6 +56,7 @@ const sider: Record<string, string> = {
   "/agent": "agent.html",
   "/agent.html": "agent.html",
   "/utforsker": "utforsker.html",
+  "/innbyggerportal": "innbyggerportal.html",
   // Template for teams building their own frontend. See docs/designsystem.md.
   "/ds-eksempel": "ds-eksempel.html",
   // The redirect_uri registered with ID-porten. Same path for every page: the page

@@ -23,6 +23,7 @@ import {
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
 import { routeOverview } from "../../shared/openapi.ts";
+import { finnPortaltilbud, hentPortaltilbud } from "./innbyggerportal.ts";
 import {
   buildProsessoektRespons,
   createSoknad,
@@ -156,6 +157,33 @@ async function readBodyOnce(request: IncomingMessage): Promise<any> {
 
 function getSporingsId(url: URL) {
   return url.searchParams.get("sporingsId") || newId("flyt");
+}
+
+function portalperson(
+  tilstand: State,
+  kaller: Caller,
+  oppgittPersonId?: unknown
+) {
+  const person = kaller.type === "innbygger"
+    ? tilstand.personer.find((kandidat: any) => kandidat.syntetiskFodselsnummer === kaller.pid)
+    : tilstand.personer.find((kandidat: any) => kandidat.personId === oppgittPersonId);
+  if (!person) {
+    throw new HttpError(
+      kaller.type === "system" ? "Maskinkall mangler en gyldig personId." : "Fant ikke innlogget person.",
+      kaller.type === "system" ? 400 : 404
+    );
+  }
+  return person;
+}
+
+function portalalder(person: { foedselsdato?: string }) {
+  if (!person.foedselsdato) {
+    throw new HttpError("Mockpersonen mangler fødselsdato.", 500);
+  }
+  return hentPortaltilbud(
+    person.foedselsdato,
+    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer
+  );
 }
 
 // --- the økt contract, in one place ----------------------------------------
@@ -368,6 +396,152 @@ const ruter: Rute[] = [
         ? alle.filter((person: any) => person.syntetiskFodselsnummer === kaller.pid)
         : alle;
       jsonResponse(response, 200, visible);
+    }
+  },
+  {
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/meg",
+    handter: ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      jsonResponse(response, 200, {
+        ...person,
+        visningsnavn: [person.navn.fornavn, person.navn.mellomnavn, person.navn.etternavn]
+          .filter(Boolean).join(" "),
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/tilbud",
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const resultat = portalalder(person);
+      await addRevisjon({
+        sporingsId: getSporingsId(url),
+        handling: "PORTALTILBUD_VIST",
+        ressurs: "innbyggerportal-tilbud",
+        formaal: "Vise relevante kommunale tilbud",
+        gjaldt: person.personId,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        ...resultat,
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "POST",
+    sti: "/api/innbyggerportal/placeholder/samtykke",
+    handter: async ({ request, response, tilstand, kaller }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      jsonResponse(response, 201, {
+        samtykkeId: `placeholder-samtykke-${person.personId}`,
+        personId: person.personId,
+        formaal: "Bruke kontaktopplysningene dine til å følge opp tilbud du ber om kontakt om",
+        dataKilder: ["kontaktinfo"],
+        status: "VENTER_PAA_SVAR",
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "PUT",
+    sti: "/api/innbyggerportal/placeholder/samtykke/:samtykkeId/svar",
+    handter: async ({ request, response, parametere, tilstand, kaller }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      if (parametere.samtykkeId !== `placeholder-samtykke-${person.personId}`) {
+        throw new HttpError("Fant ikke samtykkeforespørselen.", 404);
+      }
+      const status = body.status === "IKKE_SAMTYKKET" ? "IKKE_SAMTYKKET" : "SAMTYKKET";
+      jsonResponse(response, 200, {
+        samtykkeId: parametere.samtykkeId,
+        personId: person.personId,
+        status,
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/kontaktinfo",
+    handter: ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        epost: { adresse: "innbygger@example.test" },
+        tlf: { nummer: "+4799999999" },
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/registreringer",
+    handter: ({ response, url, tilstand, kaller }) => {
+      portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      jsonResponse(response, 200, { registreringer: [], mock: true, syntetisk: true });
+    }
+  },
+  {
+    metode: "POST",
+    sti: "/api/innbyggerportal/placeholder/registreringer",
+    handter: async ({ request, response, tilstand, kaller, url }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      const aktuelle = portalalder(person);
+      const tilbudIder: string[] = Array.isArray(body.tilbudIder)
+        ? [...new Set<string>(body.tilbudIder.filter((verdi: unknown): verdi is string => typeof verdi === "string"))]
+        : [];
+      if (!aktuelle.portalTilgjengelig || tilbudIder.length === 0) {
+        throw new HttpError("Velg minst ett tilgjengelig tilbud.", 400);
+      }
+      const valgte = tilbudIder.map((tilbudId) => {
+        const treff = finnPortaltilbud(tilbudId);
+        const erTilgjengelig = aktuelle.aktiviteter.some((aktivitet) =>
+          aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === tilbudId)
+        );
+        if (!treff || !erTilgjengelig) {
+          throw new HttpError(`Tilbudet ${tilbudId} er ikke tilgjengelig for innbyggeren.`, 400);
+        }
+        return treff;
+      });
+      const opprettet = valgte.map(({ aktivitet, tilbud }) => ({
+        registreringId: `placeholder-registrering-${tilbud.tilbudId}`,
+        personId: person.personId,
+        aktivitetId: aktivitet.aktivitetId,
+        tilbudId: tilbud.tilbudId,
+        navn: tilbud.navn ?? aktivitet.navn,
+        status: "MOTTATT",
+        opprettet: "2026-09-10T12:00:00.000Z",
+        mock: true,
+        syntetisk: true
+      }));
+      const sporingsId = getSporingsId(url);
+      await addRevisjon({
+        sporingsId,
+        handling: "PORTALREGISTRERING_OPPRETTET",
+        ressurs: "innbyggerportal-registrering",
+        formaal: "Følge opp tilbud innbyggeren har valgt",
+        gjaldt: person.personId,
+        antall: opprettet.length,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 201, {
+        registreringer: opprettet,
+        sporingsId,
+        mock: true,
+        syntetisk: true
+      });
     }
   },
   {

@@ -13,6 +13,12 @@ function delerAv(isodato: string): [number, number, number] {
 }
 
 const norskAarsformat = new Intl.DateTimeFormat("en", { timeZone: "Europe/Oslo", year: "numeric" });
+const norskDatoformat = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Oslo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
 
 /**
  * Kalenderåret i Norge. Ikke maskinens: containere og CI står i UTC, så
@@ -23,6 +29,10 @@ const norskAarsformat = new Intl.DateTimeFormat("en", { timeZone: "Europe/Oslo",
  */
 export function norskKalenderaar(naa: number = Date.now()): number {
   return Number(norskAarsformat.format(naa));
+}
+
+export function norskKalenderdato(naa: number = Date.now()): string {
+  return norskDatoformat.format(naa);
 }
 
 export function alderVed(foedselsdato: string, referansedato: string): number {
