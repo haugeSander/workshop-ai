@@ -25,7 +25,17 @@ import {
 import { openapiFile } from "./config.ts";
 import { kjoerVarsling, lesUtsendinger, VARSELHJEMMEL } from "./varsling.ts";
 import { routeOverview } from "../../shared/openapi.ts";
-import { finnPortaltilbud, hentAktivitetskatalog, hentPortaltilbud } from "./innbyggerportal.ts";
+import {
+  fjernPortalregistrering,
+  finnPortaltilbud,
+  hentAktivitetskategorier,
+  hentAktivitetskatalog,
+  hentPortalpreferanse,
+  hentPortalregistreringer,
+  hentPortaltilbud,
+  lagrePortalpreferanse,
+  lagrePortalregistreringer
+} from "./innbyggerportal.ts";
 import {
   buildProsessoektRespons,
   createSoknad,
@@ -178,13 +188,15 @@ function portalperson(
   return person;
 }
 
-function portalalder(person: { foedselsdato?: string }) {
+function portalalder(person: { foedselsdato?: string }, kategorier?: string[]) {
   if (!person.foedselsdato) {
     throw new HttpError("Mockpersonen mangler fødselsdato.", 500);
   }
   return hentPortaltilbud(
     person.foedselsdato,
-    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer
+    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer,
+    undefined,
+    kategorier
   );
 }
 
@@ -424,10 +436,76 @@ const ruter: Rute[] = [
   },
   {
     metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/preferanser",
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const preferanse = await hentPortalpreferanse(person.personId);
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        ferdigstilt: preferanse !== null,
+        kategorier: preferanse?.kategorier ?? [],
+        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "PUT",
+    sti: "/api/innbyggerportal/placeholder/preferanser",
+    handter: async ({ request, response, url, tilstand, kaller }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      let preferanse;
+      try {
+        preferanse = await lagrePortalpreferanse(person.personId, body.kategorier);
+      } catch (feil) {
+        throw new HttpError(feil instanceof Error ? feil.message : "Ugyldige kategorier.", 400);
+      }
+      await addRevisjon({
+        sporingsId: getSporingsId(url),
+        handling: "PORTALPREFERANSER_OPPDATERT",
+        ressurs: "innbyggerportal-preferanser",
+        formaal: "Tilpasse anbefalte aktiviteter",
+        gjaldt: person.personId,
+        antall: preferanse.kategorier.length,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 200, {
+        ...preferanse,
+        ferdigstilt: true,
+        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "GET",
     sti: "/api/innbyggerportal/placeholder/tilbud",
     handter: async ({ response, url, tilstand, kaller }) => {
       const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
-      const resultat = portalalder(person);
+      const preferanse = await hentPortalpreferanse(person.personId);
+      const resultat = portalalder(person, preferanse?.kategorier ?? []);
+      const alleTilgjengelige = portalalder(person).aktiviteter;
+      const registreringer = await hentPortalregistreringer(person.personId);
+      const registrerteAktivitetIder = new Set(registreringer.map((registrering) => registrering.aktivitetId));
+      resultat.aktiviteter = resultat.aktiviteter.filter(
+        (aktivitet) => !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+      );
+      const anbefalteIder = new Set(resultat.aktiviteter.map((aktivitet) => aktivitet.aktivitetId));
+      const andreAktiviteter = preferanse
+        ? alleTilgjengelige.filter((aktivitet) =>
+            !anbefalteIder.has(aktivitet.aktivitetId)
+            && !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+          )
+        : [];
+      const valgtTilbudId = url.searchParams.get("tilbudId");
+      const valgtAktivitet = alleTilgjengelige.find((aktivitet) =>
+        !registrerteAktivitetIder.has(aktivitet.aktivitetId)
+        &&
+        aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === valgtTilbudId)
+      ) ?? null;
       await addRevisjon({
         sporingsId: getSporingsId(url),
         handling: "PORTALTILBUD_VIST",
@@ -439,6 +517,10 @@ const ruter: Rute[] = [
       jsonResponse(response, 200, {
         personId: person.personId,
         ...resultat,
+        andreAktiviteter,
+        preferanserValgt: preferanse !== null,
+        valgteKategorier: preferanse?.kategorier ?? [],
+        valgtAktivitet,
         mock: true,
         syntetisk: true
       });
@@ -497,9 +579,10 @@ const ruter: Rute[] = [
   {
     metode: "GET",
     sti: "/api/innbyggerportal/placeholder/registreringer",
-    handter: ({ response, url, tilstand, kaller }) => {
-      portalperson(tilstand, kaller, url.searchParams.get("personId"));
-      jsonResponse(response, 200, { registreringer: [], mock: true, syntetisk: true });
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const registreringer = await hentPortalregistreringer(person.personId);
+      jsonResponse(response, 200, { registreringer, mock: true, syntetisk: true });
     }
   },
   {
@@ -525,17 +608,12 @@ const ruter: Rute[] = [
         }
         return treff;
       });
-      const opprettet = valgte.map(({ aktivitet, tilbud }) => ({
-        registreringId: `placeholder-registrering-${tilbud.tilbudId}`,
-        personId: person.personId,
-        aktivitetId: aktivitet.aktivitetId,
-        tilbudId: tilbud.tilbudId,
-        navn: tilbud.navn ?? aktivitet.navn,
-        status: "MOTTATT",
-        opprettet: "2026-09-10T12:00:00.000Z",
-        mock: true,
-        syntetisk: true
-      }));
+      let opprettet;
+      try {
+        opprettet = await lagrePortalregistreringer(person.personId, valgte);
+      } catch (feil) {
+        throw new HttpError(feil instanceof Error ? feil.message : "Kunne ikke registrere påmeldingen.", 409);
+      }
       const sporingsId = getSporingsId(url);
       await addRevisjon({
         sporingsId,
@@ -548,6 +626,32 @@ const ruter: Rute[] = [
       });
       jsonResponse(response, 201, {
         registreringer: opprettet,
+        sporingsId,
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "DELETE",
+    sti: "/api/innbyggerportal/placeholder/registreringer/:registreringId",
+    handter: async ({ response, url, parametere, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const fjernet = await fjernPortalregistrering(person.personId, parametere.registreringId);
+      if (!fjernet) {
+        throw new HttpError("Fant ikke påmeldingen.", 404);
+      }
+      const sporingsId = getSporingsId(url);
+      await addRevisjon({
+        sporingsId,
+        handling: "PORTALREGISTRERING_FJERNET",
+        ressurs: "innbyggerportal-registrering",
+        formaal: "Avslutte en påmelding etter ønske fra innbyggeren",
+        gjaldt: person.personId,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 200, {
+        registrering: fjernet,
         sporingsId,
         mock: true,
         syntetisk: true

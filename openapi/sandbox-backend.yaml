@@ -410,6 +410,63 @@ paths:
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
 
+  /api/innbyggerportal/placeholder/preferanser:
+    get:
+      summary: Hent aktivitetsinteressene til innbyggeren
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Midlertidig placeholder. En respons med ferdigstilt satt til false betyr
+        at innbyggeren må velge kategorier før anbefalingene kan vises.
+      parameters:
+        - name: personId
+          in: query
+          required: false
+          description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lagrede interesser og kategoriene som kan velges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Portalpreferanser"
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+    put:
+      summary: Lagre aktivitetsinteressene til innbyggeren
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kategorier]
+              properties:
+                personId:
+                  type: string
+                  description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+                kategorier:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: string }
+      responses:
+        "200":
+          description: Oppdaterte interesser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Portalpreferanser"
+        "400":
+          $ref: "#/components/responses/UgyldigForesporsel"
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+
   /api/innbyggerportal/placeholder/tilbud:
     get:
       summary: Hent mockkatalogen for senioraktiviteter
@@ -419,12 +476,19 @@ paths:
       description: >
         Midlertidig placeholder. Returnerer senioraktiviteter i formen fra
         aktivitetskatalogen når den syntetiske personen er minst 62 år og bor i
-        katalogens kommune. Varslingen gir ingen tilgang eller portaltilstand.
+        katalogens kommune. Aktivitetene avgrenses til kategoriene innbyggeren har
+        valgt. Uten lagrede preferanser er listen tom. Varslingen gir ingen tilgang
+        eller portaltilstand.
       parameters:
         - name: personId
           in: query
           required: false
           description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+        - name: tilbudId
+          in: query
+          required: false
+          description: Tilbud valgt i den offentlige katalogen, returnert separat når det er tilgjengelig for innbyggeren.
           schema: { type: string }
       responses:
         "200":
@@ -523,7 +587,7 @@ paths:
 
   /api/innbyggerportal/placeholder/registreringer:
     get:
-      summary: Hent mockregistreringer
+      summary: Hent innbyggerens mockregistreringer
       security:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
@@ -535,12 +599,11 @@ paths:
           schema: { type: string }
       responses:
         "200":
-          description: Tom, eksplisitt mockmerket registreringsrespons
+          description: Innbyggerens lagrede, eksplisitt mockmerkede registreringer
           content:
             application/json:
               schema:
                 type: object
-                required: [registreringer, mock, syntetisk]
                 properties:
                   registreringer:
                     type: array
@@ -554,8 +617,9 @@ paths:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
       description: >
-        Midlertidig placeholder. Validerer mocktilbudene og returnerer syntetiske
-        kvitteringer uten å lagre dem.
+        Midlertidig placeholder. Validerer mocktilbudene, lagrer syntetiske
+        registreringer og avviser ny påmelding til en aktivitet innbyggeren
+        allerede er påmeldt.
       requestBody:
         required: true
         content:
@@ -591,6 +655,50 @@ paths:
           description: Ingen gyldige tilbud ble valgt
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
+        "409":
+          description: Innbyggeren er allerede påmeldt aktiviteten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+
+  /api/innbyggerportal/placeholder/registreringer/{registreringId}:
+    delete:
+      summary: Fjern en mockregistrering
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Fjerner registreringen bare når den tilhører innbyggeren det autentiserte
+        kallet gjelder. Aktiviteten blir deretter tilgjengelig for påmelding igjen.
+      parameters:
+        - name: registreringId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: personId
+          in: query
+          required: false
+          description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Registreringen er fjernet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [registrering, sporingsId, mock, syntetisk]
+                properties:
+                  registrering:
+                    $ref: "#/components/schemas/Portalregistrering"
+                  sporingsId: { type: string }
+                  mock: { type: boolean, const: true }
+                  syntetisk: { type: boolean, const: true }
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
 
   /api/personer/{personId}/husstand:
     get:
@@ -2049,9 +2157,34 @@ components:
             $ref: "#/components/schemas/PortalTilbyder"
         mock: { type: boolean, const: true }
         syntetisk: { type: boolean, const: true }
+        "409":
+          description: Innbyggeren er allerede påmeldt aktiviteten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+    Portalpreferanser:
+      type: object
+      required: [personId, ferdigstilt, kategorier, tilgjengeligeKategorier, mock, syntetisk]
+      properties:
+        personId: { type: string }
+        ferdigstilt: { type: boolean }
+        kategorier:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        tilgjengeligeKategorier:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        oppdatert:
+          type: string
+          format: date-time
+        mock: { type: boolean, const: true }
+        syntetisk: { type: boolean, const: true }
     PortaltilbudRespons:
       type: object
-      required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, tilbydere, mock, syntetisk]
+      required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, andreAktiviteter, tilbydere, preferanserValgt, valgteKategorier, valgtAktivitet, mock, syntetisk]
       properties:
         personId: { type: string }
         alder: { type: integer }
@@ -2063,10 +2196,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PortalSenioraktivitet"
+        andreAktiviteter:
+          type: array
+          description: Alderstilpassede aktiviteter utenfor kategoriene innbyggeren har valgt.
+          items:
+            $ref: "#/components/schemas/PortalSenioraktivitet"
         tilbydere:
           type: array
           items:
             $ref: "#/components/schemas/PortalTilbyder"
+        preferanserValgt: { type: boolean }
+        valgteKategorier:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        valgtAktivitet:
+          oneOf:
+            - $ref: "#/components/schemas/PortalSenioraktivitet"
+            - type: "null"
         mock: { type: boolean, const: true }
         syntetisk: { type: boolean, const: true }
     Portalregistrering:

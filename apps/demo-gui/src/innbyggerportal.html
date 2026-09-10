@@ -31,6 +31,9 @@
         .portal-summary dd { margin: var(--ds-size-1) 0 0; }
         .portal-actions { display: flex; flex-wrap: wrap; gap: var(--ds-size-3); align-items: center; }
         .portal-section { display: grid; gap: var(--ds-size-4); }
+        .portal-preferences { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--ds-size-2) var(--ds-size-5); }
+        .portal-preference { display: flex; align-items: center; gap: var(--ds-size-2); }
+        .portal-section__heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: var(--ds-size-3); }
         .portal-footer { border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-tinted); }
         .portal-footer__inner { padding-block: var(--ds-size-6); }
         [hidden] { display: none !important; }
@@ -59,12 +62,47 @@
           <p class="ds-paragraph" data-size="lg" id="ingress"></p>
         </header>
 
-        <section class="portal-section" id="tilbudsseksjon" hidden aria-labelledby="tilbud-tittel">
+        <div class="ds-tabs" id="portalfaner" hidden>
+          <div role="tablist" aria-label="Aktivitetsportalen">
+            <button type="button" role="tab" id="aktiviteter-fane" aria-controls="aktiviteter-panel" aria-selected="true">Finn aktiviteter</button>
+            <button type="button" role="tab" id="paameldinger-fane" aria-controls="paameldinger-panel" aria-selected="false" tabindex="-1">Mine påmeldinger</button>
+          </div>
+        </div>
+
+        <div role="tabpanel" id="aktiviteter-panel" aria-labelledby="aktiviteter-fane">
+        <section class="portal-section" id="preferanseseksjon" hidden aria-labelledby="preferanse-tittel">
           <div>
-            <h2 class="ds-heading" data-size="md" id="tilbud-tittel">Anbefalte aktiviteter</h2>
-            <p class="ds-paragraph">Anbefalingene bygger på alderen din og kommunen du bor i.</p>
+            <h2 class="ds-heading" data-size="lg" id="preferanse-tittel">Hva er du interessert i?</h2>
+            <p class="ds-paragraph">Velg én eller flere kategorier. Vi bruker valgene til å finne aktiviteter som kan passe for deg.</p>
+          </div>
+          <fieldset class="ds-fieldset">
+            <legend class="ds-fieldset__legend">Kategorier</legend>
+            <div class="portal-preferences" id="preferansevalg"></div>
+          </fieldset>
+          <div class="ds-alert" data-color="danger" id="preferansefeil" aria-live="polite" hidden></div>
+          <div class="portal-actions">
+            <button class="ds-button" type="button" id="lagrePreferanser">Vis anbefalinger</button>
+            <button class="ds-button" data-variant="secondary" type="button" id="avbrytPreferanser" hidden>Avbryt</button>
+          </div>
+        </section>
+
+        <section class="portal-section" id="tilbudsseksjon" hidden aria-labelledby="tilbud-tittel">
+          <div class="portal-section__heading">
+            <div>
+              <h2 class="ds-heading" data-size="md" id="tilbud-tittel">Anbefalte aktiviteter</h2>
+              <p class="ds-paragraph">Anbefalingene bygger på interessene dine, alderen din og kommunen du bor i.</p>
+            </div>
+            <button class="ds-button" data-variant="secondary" type="button" id="endrePreferanser">Endre interesser</button>
           </div>
           <div class="portal-grid" id="tilbud"></div>
+        </section>
+
+        <section class="portal-section" id="andretilbudsseksjon" hidden aria-labelledby="andre-tilbud-tittel">
+          <div>
+            <h2 class="ds-heading" data-size="md" id="andre-tilbud-tittel">Andre aktiviteter</h2>
+            <p class="ds-paragraph">Dette er resten av aktivitetene som er tilgjengelige for deg.</p>
+          </div>
+          <div class="portal-grid" id="andretilbud"></div>
         </section>
 
         <section class="portal-section" id="paameldingsseksjon" hidden aria-labelledby="paamelding-tittel">
@@ -84,6 +122,17 @@
         </section>
 
         <div id="kvittering" aria-live="polite"></div>
+        </div>
+
+        <section class="portal-section" role="tabpanel" id="paameldinger-panel" aria-labelledby="paameldinger-fane" hidden>
+          <div>
+            <h2 class="ds-heading" data-size="md">Mine påmeldinger</h2>
+            <p class="ds-paragraph">Aktiviteter du allerede er påmeldt.</p>
+          </div>
+          <div class="portal-grid" id="paameldinger"></div>
+          <p class="ds-paragraph" id="ingenPaameldinger" hidden>Du er ikke påmeldt noen aktiviteter ennå.</p>
+          <div id="paameldingsstatus" aria-live="polite"></div>
+        </section>
       </main>
 
       <footer class="portal-footer">

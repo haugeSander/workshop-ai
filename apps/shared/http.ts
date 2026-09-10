@@ -20,7 +20,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
  * only in the console, while curl keeps working perfectly.
  */
 export function cors(
-  methods = "GET,POST,PUT,OPTIONS",
+  methods = "GET,POST,PUT,DELETE,OPTIONS",
   headers = "Content-Type,Authorization"
 ): Record<string, string> {
   return {
