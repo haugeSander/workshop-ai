@@ -482,8 +482,12 @@ const ruter: Rute[] = [
       const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
       const preferanse = await hentPortalpreferanse(person.personId);
       const resultat = portalalder(person, preferanse?.kategorier ?? []);
+      const alleTilgjengelige = portalalder(person).aktiviteter;
+      const anbefalteIder = new Set(resultat.aktiviteter.map((aktivitet) => aktivitet.aktivitetId));
+      const andreAktiviteter = preferanse
+        ? alleTilgjengelige.filter((aktivitet) => !anbefalteIder.has(aktivitet.aktivitetId))
+        : [];
       const valgtTilbudId = url.searchParams.get("tilbudId");
-      const alleTilgjengelige = valgtTilbudId ? portalalder(person).aktiviteter : [];
       const valgtAktivitet = alleTilgjengelige.find((aktivitet) =>
         aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === valgtTilbudId)
       ) ?? null;
@@ -498,6 +502,7 @@ const ruter: Rute[] = [
       jsonResponse(response, 200, {
         personId: person.personId,
         ...resultat,
+        andreAktiviteter,
         preferanserValgt: preferanse !== null,
         valgteKategorier: preferanse?.kategorier ?? [],
         valgtAktivitet,

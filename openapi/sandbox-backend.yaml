@@ -2004,7 +2004,7 @@ components:
         syntetisk: { type: boolean, const: true }
     PortaltilbudRespons:
       type: object
-      required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, tilbydere, preferanserValgt, valgteKategorier, valgtAktivitet, mock, syntetisk]
+      required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, andreAktiviteter, tilbydere, preferanserValgt, valgteKategorier, valgtAktivitet, mock, syntetisk]
       properties:
         personId: { type: string }
         alder: { type: integer }
@@ -2014,6 +2014,11 @@ components:
         schemaVersjon: { type: integer }
         aktiviteter:
           type: array
+          items:
+            $ref: "#/components/schemas/PortalSenioraktivitet"
+        andreAktiviteter:
+          type: array
+          description: Alderstilpassede aktiviteter utenfor kategoriene innbyggeren har valgt.
           items:
             $ref: "#/components/schemas/PortalSenioraktivitet"
         tilbydere:

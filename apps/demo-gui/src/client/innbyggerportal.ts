@@ -42,6 +42,7 @@ type Portalrespons = {
   kommunenavn: string;
   kommunenummer: string;
   aktiviteter: Aktivitet[];
+  andreAktiviteter: Aktivitet[];
   tilbydere: { tilbyderId: string; navn: string }[];
   preferanserValgt: boolean;
   valgteKategorier: string[];
@@ -68,6 +69,8 @@ const lagrePreferanserKnapp = krevEl<HTMLButtonElement>("lagrePreferanser");
 const avbrytPreferanserKnapp = krevEl<HTMLButtonElement>("avbrytPreferanser");
 const tilbudsseksjonEl = krevEl("tilbudsseksjon");
 const tilbudEl = krevEl("tilbud");
+const andretilbudsseksjonEl = krevEl("andretilbudsseksjon");
+const andretilbudEl = krevEl("andretilbud");
 const paameldingsseksjonEl = krevEl("paameldingsseksjon");
 const paameldingsdataEl = krevEl("paameldingsdata");
 const paameldingsforklaringEl = krevEl("paameldingsforklaring");
@@ -158,8 +161,8 @@ function kategorinavnFor(kategori: string): string {
 
 function finnTilbud(tilbudId: string): { aktivitet: Aktivitet; tilbud: Tilbud } | null {
   const aktiviteter = portal.valgtAktivitet
-    ? [...portal.aktiviteter, portal.valgtAktivitet]
-    : portal.aktiviteter;
+    ? [...portal.aktiviteter, ...portal.andreAktiviteter, portal.valgtAktivitet]
+    : [...portal.aktiviteter, ...portal.andreAktiviteter];
   for (const aktivitet of aktiviteter) {
     const tilbud = aktivitet.tilbud.find((kandidat) => kandidat.tilbudId === tilbudId);
     if (tilbud) return { aktivitet, tilbud };
@@ -174,17 +177,20 @@ function tilbudssti(): string {
     : PORTAL_ENDPOINTS.tilbud;
 }
 
-function renderAnbefalinger(): void {
-  tilbudEl.replaceChildren();
-  const anbefalte = portal.aktiviteter;
-  for (const aktivitet of anbefalte) {
+function renderAktiviteter(mottaker: HTMLElement, aktiviteter: Aktivitet[], visBegrunnelse: boolean): void {
+  mottaker.replaceChildren();
+  for (const aktivitet of aktiviteter) {
     const kort = element("article", "ds-card portal-card");
     const innhold = element("div", "ds-card__block");
     innhold.append(
       element("h3", "ds-heading", aktivitet.navn),
-      element("p", "ds-paragraph", aktivitet.beskrivelse),
-      element("p", "portal-meta", `Anbefalt fordi du valgte ${kategorinavnFor(aktivitet.kategori).toLowerCase()}`)
+      element("p", "ds-paragraph", aktivitet.beskrivelse)
     );
+    if (visBegrunnelse) {
+      innhold.append(
+        element("p", "portal-meta", `Anbefalt fordi du valgte ${kategorinavnFor(aktivitet.kategori).toLowerCase()}`)
+      );
+    }
     kort.append(innhold);
 
     for (const tilbud of aktivitet.tilbud) {
@@ -208,12 +214,23 @@ function renderAnbefalinger(): void {
       }
       kort.append(tilbudsdel);
     }
-    tilbudEl.append(kort);
+    mottaker.append(kort);
   }
-  tilbudsseksjonEl.hidden = anbefalte.length === 0;
+}
+
+function renderAnbefalinger(): void {
+  const anbefalte = portal.aktiviteter;
+  renderAktiviteter(tilbudEl, anbefalte, true);
+  renderAktiviteter(andretilbudEl, portal.andreAktiviteter, false);
+  visAktivitetslister();
   if (anbefalte.length === 0) {
     visStatus("Vi fant ingen anbefalte aktiviteter for opplysningene dine.", "warning");
   }
+}
+
+function visAktivitetslister(): void {
+  tilbudsseksjonEl.hidden = portal.aktiviteter.length === 0;
+  andretilbudsseksjonEl.hidden = portal.andreAktiviteter.length === 0;
 }
 
 function renderPreferanser(): void {
@@ -238,6 +255,7 @@ function visPreferanser(redigering: boolean): void {
   renderPreferanser();
   preferansefeilEl.hidden = true;
   tilbudsseksjonEl.hidden = true;
+  andretilbudsseksjonEl.hidden = true;
   paameldingsseksjonEl.hidden = true;
   avbrytPreferanserKnapp.hidden = !redigering;
   preferanseseksjonEl.hidden = false;
@@ -289,6 +307,7 @@ async function visOppsummering(tilbudId: string): Promise<void> {
   paameldingsforklaringEl.textContent =
     "Navn og kontaktinformasjon brukes til påmeldingen. Fødselsdato og kommune brukes bare til å kontrollere at tilbudet er tilgjengelig for deg.";
   tilbudsseksjonEl.hidden = true;
+  andretilbudsseksjonEl.hidden = true;
   paameldingsseksjonEl.hidden = false;
   paameldingsseksjonEl.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -310,7 +329,7 @@ async function bekreftPaamelding(): Promise<void> {
       element("p", "ds-paragraph", `Kvittering: ${svar.sporingsId}`)
     );
     kvitteringEl.replaceChildren(varsel);
-    tilbudsseksjonEl.hidden = false;
+    visAktivitetslister();
     kvitteringEl.scrollIntoView({ behavior: "smooth", block: "start" });
   } finally {
     bekreftKnapp.disabled = false;
@@ -320,7 +339,7 @@ async function bekreftPaamelding(): Promise<void> {
 function avbrytPaamelding(): void {
   valgtTilbudId = null;
   paameldingsseksjonEl.hidden = true;
-  tilbudsseksjonEl.hidden = false;
+  visAktivitetslister();
 }
 
 async function start(): Promise<void> {
@@ -359,7 +378,7 @@ krevEl<HTMLButtonElement>("byttBruker").addEventListener("click", switchUser);
 lagrePreferanserKnapp.addEventListener("click", () => void lagrePreferanser());
 avbrytPreferanserKnapp.addEventListener("click", () => {
   preferanseseksjonEl.hidden = true;
-  tilbudsseksjonEl.hidden = false;
+  visAktivitetslister();
 });
 krevEl<HTMLButtonElement>("endrePreferanser").addEventListener("click", () => visPreferanser(true));
 bekreftKnapp.addEventListener("click", () => void bekreftPaamelding());
