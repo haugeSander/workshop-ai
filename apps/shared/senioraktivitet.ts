@@ -354,6 +354,105 @@ export function parseAktivitetskatalog(raa: unknown): Aktivitetskatalog {
   };
 }
 
+/**
+ * Neste gang et tilbud går, regnet fra en dato.
+ *
+ * Katalogen har ingen datoer - bare `ukedager`, `fraKlokkeslett` og `sesong`. Den
+ * beskriver gjentakelser, ikke forekomster, og det er kommunens eget skjema som
+ * ikke skal skrives om. Så en påmelding gjelder tilbudet, og *når* regnes ut her.
+ *
+ * Både påminnelsen i varslingsjobben og påmeldingssvaret trenger den, så den bor i
+ * apps/shared framfor i én av dem.
+ */
+export type Neste = {
+  /** ISO-dato, `YYYY-MM-DD`. */
+  dato: string;
+  fraKlokkeslett: string;
+  tilKlokkeslett?: string;
+};
+
+// Søndag er 0, som getUTCDay. Nøklene er katalogens egne, uten ø - se README.
+const UKEDAGSNUMMER: Record<string, number> = {
+  soendag: 0, mandag: 1, tirsdag: 2, onsdag: 3, torsdag: 4, fredag: 5, loerdag: 6
+};
+
+/*
+ * Date.UTC inn og toISOString ut, aldri en lokal getter. Det er samme teknikk som
+ * `maanederEtter` i alder.ts, og av samme grunn: en ISO-dato parses som
+ * UTC-midnatt mens getDay og getDate svarer i maskinens sone, og den rundturen
+ * flytter en tirsdag til en mandag vest for Greenwich.
+ */
+function tilUtc(isodato: string): number {
+  const [aar, maaned, dag] = isodato.slice(0, 10).split("-").map(Number);
+  return Date.UTC(aar!, maaned! - 1, dag!);
+}
+
+/** Måneden fra strengen. Ingen Date - en måned er to tegn på en ISO-dato. */
+function iSesong(isodato: string, sesong?: { fraMaaned: number; tilMaaned: number }): boolean {
+  if (!sesong) return true;
+  const maaned = Number(isodato.slice(5, 7));
+  // En sesong kan gå over nyttår, og da er intervallet det som ligger utenfor.
+  return sesong.fraMaaned <= sesong.tilMaaned
+    ? maaned >= sesong.fraMaaned && maaned <= sesong.tilMaaned
+    : maaned >= sesong.fraMaaned || maaned <= sesong.tilMaaned;
+}
+
+/**
+ * Første dato fra og med `fraDato` som treffer både ukedagene og sesongen.
+ *
+ * `fraDato` teller selv med: en jobb som spør «hva går i dag» skal få dagens
+ * tilbud. Vil du ha «fra og med i morgen», send i morgen.
+ *
+ * **Tom `ukedager` betyr hver dag, ikke ingen.** Kontrakten sier «ikke bundet til
+ * bestemte dager», og det er et dagsenter som er åpent - `aktivitetssenteret-gleden`
+ * er nettopp det. Lest som «ingen dager» ville tilbudet aldri hatt en neste gang.
+ *
+ * Sesongen stopper ikke søket, den flytter det: i november svarer turgruppa med
+ * første tirsdag i april, framfor med `null`. Det er svaret påmeldingen trenger for
+ * å kunne si «du er påmeldt, neste gang er i april», og det gjør at varslingsjobben
+ * slipper et sesongtilfelle - en dato som ligger måneder fram er bare ikke i morgen.
+ */
+function foersteTreff(tidspunkt: Tidspunkt, fraDato: string): string | null {
+  const dager = tidspunkt.ukedager.length > 0
+    ? new Set(tidspunkt.ukedager.map((dag) => UKEDAGSNUMMER[dag]))
+    : null;
+  // Grensen er en runde pluss en sesong: med gyldige data - minst én kjent ukedag
+  // og en sesong innenfor 1-12 - finnes det alltid et treff innen 372 dager. Løkken
+  // er avgrenset likevel, så en fremtidig ugyldig verdi gir null framfor å henge.
+  let ms = tilUtc(fraDato);
+  for (let i = 0; i <= 372; i += 1) {
+    const dato = new Date(ms).toISOString().slice(0, 10);
+    if ((!dager || dager.has(new Date(ms).getUTCDay())) && iSesong(dato, tidspunkt.sesong)) {
+      return dato;
+    }
+    ms += 86400000;
+  }
+  return null;
+}
+
+export function nesteGang(tilbud: Tilbud, fraDato: string): Neste | null {
+  let beste: Neste | null = null;
+  for (const tidspunkt of tilbud.tidspunkter) {
+    const dato = foersteTreff(tidspunkt, fraDato);
+    if (!dato) continue;
+    const kandidat: Neste = {
+      dato,
+      fraKlokkeslett: tidspunkt.fraKlokkeslett,
+      ...(tidspunkt.tilKlokkeslett === undefined ? {} : { tilKlokkeslett: tidspunkt.tilKlokkeslett })
+    };
+    // Samme dag to ganger avgjøres på klokkeslettet, så to tidspunkter i vilkårlig
+    // rekkefølge i filen gir samme svar.
+    if (!beste
+      || kandidat.dato < beste.dato
+      || (kandidat.dato === beste.dato && kandidat.fraKlokkeslett < beste.fraKlokkeslett)) {
+      beste = kandidat;
+    }
+  }
+  // Null betyr «ingen fast gjentakelse», ikke «ikke nå». Et kurs og en veiledning
+  // har ingen `tidspunkter`, og sju av ti tilbud i katalogen er slike i dag.
+  return beste;
+}
+
 /** Kategoriverdiene katalogen faktisk bruker. Domenet grupperingen måles mot. */
 export function kategoriverdier(katalog: Aktivitetskatalog): string[] {
   return [...new Set(katalog.aktiviteter.map((aktivitet) => aktivitet.kategori))].sort();

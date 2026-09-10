@@ -28,8 +28,9 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { parseAktivitetskatalog } from "../apps/shared/senioraktivitet.ts";
-import type { Aktivitetskatalog, Seniortilbud } from "../apps/shared/senioraktivitet.ts";
+import { nesteGang, parseAktivitetskatalog } from "../apps/shared/senioraktivitet.ts";
+import type { Aktivitetskatalog, Seniortilbud, Tidspunkt, Tilbud }
+  from "../apps/shared/senioraktivitet.ts";
 import {
   BEGRUNNELSESKODER,
   byggProfilFraKilder,
@@ -418,6 +419,114 @@ const dekketAnnetsteds: Begrunnelseskode[] = ["teleslynge", "teleslynge_mangler"
 for (const kode of dekketAnnetsteds) sett.add(kode);
 const udekket = BEGRUNNELSESKODER.filter((kode) => !sett.has(kode));
 check("hver begrunnelseskode nås av en gren", udekket.length === 0, udekket.join(","));
+
+// --- 6. nesteGang -----------------------------------------------------------
+
+/*
+ * Katalogen har ingen datoer, bare gjentakelser. Både påminnelsen i varslingen og
+ * påmeldingssvaret må kunne si *når*, og det regnes ut her.
+ *
+ * Fixturen rekker to av formene: turgruppa er tirsdag i en sesong, og spisevenn har
+ * ingen tidspunkter i det hele tatt. Resten er literaler, av samme grunn som over -
+ * hele katalogen har ingen sesong som går over nyttår og ingen med to tidspunkter,
+ * så de grenene er døde så langt noe annet vet.
+ *
+ * Ingen av påstandene under leser klokken: `fraDato` er en parameter. Det er med
+ * vilje - en test som spurte «hva er neste tirsdag fra i dag» ville byttet svar hver
+ * uke, og en implementasjon som kalte `Date.now()` ville bestått den.
+ */
+function medTidspunkter(tidspunkter: Tidspunkt[]): Tilbud {
+  return { ...TUR.tilbud[0]!, tidspunkter };
+}
+const TURTILBUD = TUR.tilbud[0]!;   // tirsdag 09:30, sesong april-oktober
+
+// 2026-05-04 er en mandag, 2026-05-05 tirsdagen etter.
+check("neste tirsdag fra mandagen før",
+  nesteGang(TURTILBUD, "2026-05-04")?.dato === "2026-05-05",
+  JSON.stringify(nesteGang(TURTILBUD, "2026-05-04")));
+// Fra og med, ikke etter: en jobb som spør «hva går i dag» skal få dagens tilbud.
+check("selve dagen teller med",
+  nesteGang(TURTILBUD, "2026-05-05")?.dato === "2026-05-05");
+check("dagen etter hopper en uke",
+  nesteGang(TURTILBUD, "2026-05-06")?.dato === "2026-05-12");
+check("klokkeslettet blir med",
+  nesteGang(TURTILBUD, "2026-05-04")?.fraKlokkeslett === "09:30");
+check("en tur uten sluttid får ingen tilKlokkeslett",
+  nesteGang(TURTILBUD, "2026-05-04")?.tilKlokkeslett === undefined);
+
+/*
+ * Sesongen flytter søket, den stopper det ikke. I november er svaret første tirsdag
+ * i april, ikke `null` - det er nettopp svaret «du er påmeldt, neste gang er i
+ * april» trenger, og det sparer varslingsjobben for et sesongtilfelle: en dato som
+ * ligger måneder fram er bare ikke i morgen.
+ */
+check("utenfor sesongen flyttes svaret til sesongstart",
+  nesteGang(TURTILBUD, "2026-11-10")?.dato === "2027-04-06",
+  JSON.stringify(nesteGang(TURTILBUD, "2026-11-10")));
+check("siste dag i sesongen er med",
+  nesteGang(TURTILBUD, "2026-10-27")?.dato === "2026-10-27");
+
+// En sesong over nyttår finnes ikke i katalogen, men skjemaet tillater den
+// uttrykkelig - lesTidspunkt krever ikke at fra er før til.
+const vintertilbud = medTidspunkter([
+  { ukedager: ["onsdag"], fraKlokkeslett: "18:00", sesong: { fraMaaned: 11, tilMaaned: 2 } }
+]);
+check("en sesong over nyttår er i sesong i desember",
+  nesteGang(vintertilbud, "2026-12-01")?.dato === "2026-12-02",
+  JSON.stringify(nesteGang(vintertilbud, "2026-12-01")));
+check("og i januar",
+  nesteGang(vintertilbud, "2027-01-04")?.dato === "2027-01-06");
+check("men ikke i september",
+  nesteGang(vintertilbud, "2026-09-01")?.dato === "2026-11-04",
+  JSON.stringify(nesteGang(vintertilbud, "2026-09-01")));
+
+// Tom ukedagsliste betyr hver dag, ikke ingen: aktivitetssenteret er åpent 08:30-15:00
+// uten å nevne dager, og lest som «ingen dager» hadde det aldri hatt en neste gang.
+check("uten ukedager er neste gang samme dag",
+  nesteGang(medTidspunkter([{ ukedager: [], fraKlokkeslett: "08:30", tilKlokkeslett: "15:00" }]),
+    "2026-05-06")?.dato === "2026-05-06");
+check("og sluttiden blir med når den står der",
+  nesteGang(medTidspunkter([{ ukedager: [], fraKlokkeslett: "08:30", tilKlokkeslett: "15:00" }]),
+    "2026-05-06")?.tilKlokkeslett === "15:00");
+
+// Ingen tidspunkter er «ingen fast gjentakelse», ikke «ikke nå». Sju av ti tilbud i
+// katalogen er slike i dag - et kurs, en veiledning, en frivillig som kommer hjem.
+check("et tilbud uten tidspunkter har ingen neste gang",
+  nesteGang(SPISEVENN.tilbud[0]!, "2026-05-04") === null);
+
+// Flere tidspunkter: det tidligste vinner, og rekkefølgen i filen avgjør ikke.
+const toDager: Tidspunkt[] = [
+  { ukedager: ["fredag"], fraKlokkeslett: "10:00" },
+  { ukedager: ["onsdag"], fraKlokkeslett: "18:00" }
+];
+for (const [navn, rekkefoelge] of [["fredag først", toDager],
+  ["onsdag først", [...toDager].reverse()]] as const) {
+  const svar = nesteGang(medTidspunkter([...rekkefoelge]), "2026-05-04");
+  check(`det tidligste tidspunktet vinner (${navn})`,
+    svar?.dato === "2026-05-06" && svar?.fraKlokkeslett === "18:00", JSON.stringify(svar));
+}
+// Samme dag to ganger avgjøres på klokkeslettet.
+const sammeDag: Tidspunkt[] = [
+  { ukedager: ["onsdag"], fraKlokkeslett: "18:00" },
+  { ukedager: ["onsdag"], fraKlokkeslett: "09:00" }
+];
+for (const rekkefoelge of [sammeDag, [...sammeDag].reverse()]) {
+  check("samme dag avgjøres på klokkeslettet",
+    nesteGang(medTidspunkter([...rekkefoelge]), "2026-05-04")?.fraKlokkeslett === "09:00");
+}
+
+/*
+ * Månedsskifte, skuddår og årsskifte. Datoregningen går gjennom Date.UTC og
+ * toISOString og aldri gjennom en lokal getter, men det er usynlig i UTC - så disse
+ * er grensene som faller først hvis noen bytter til getDate/setDate. CI kjører
+ * rulene en gang i norsk tid av samme grunn.
+ */
+const fredager = medTidspunkter([{ ukedager: ["fredag"], fraKlokkeslett: "10:00" }]);
+check("over et månedsskifte", nesteGang(fredager, "2026-04-28")?.dato === "2026-05-01");
+check("over et årsskifte", nesteGang(fredager, "2026-12-28")?.dato === "2027-01-01");
+const skudd = medTidspunkter([{ ukedager: ["tirsdag"], fraKlokkeslett: "10:00" }]);
+check("29. februar i et skuddår", nesteGang(skudd, "2028-02-27")?.dato === "2028-02-29",
+  JSON.stringify(nesteGang(skudd, "2028-02-27")));
 
 // --- report ----------------------------------------------------------------
 if (feil.length > 0) {
