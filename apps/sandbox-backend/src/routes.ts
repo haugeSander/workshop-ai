@@ -23,7 +23,14 @@ import {
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
 import { routeOverview } from "../../shared/openapi.ts";
-import { finnPortaltilbud, hentAktivitetskatalog, hentPortaltilbud } from "./innbyggerportal.ts";
+import {
+  finnPortaltilbud,
+  hentAktivitetskategorier,
+  hentAktivitetskatalog,
+  hentPortalpreferanse,
+  hentPortaltilbud,
+  lagrePortalpreferanse
+} from "./innbyggerportal.ts";
 import {
   buildProsessoektRespons,
   createSoknad,
@@ -176,13 +183,15 @@ function portalperson(
   return person;
 }
 
-function portalalder(person: { foedselsdato?: string }) {
+function portalalder(person: { foedselsdato?: string }, kategorier?: string[]) {
   if (!person.foedselsdato) {
     throw new HttpError("Mockpersonen mangler fødselsdato.", 500);
   }
   return hentPortaltilbud(
     person.foedselsdato,
-    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer
+    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer,
+    undefined,
+    kategorier
   );
 }
 
@@ -422,10 +431,62 @@ const ruter: Rute[] = [
   },
   {
     metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/preferanser",
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const preferanse = await hentPortalpreferanse(person.personId);
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        ferdigstilt: preferanse !== null,
+        kategorier: preferanse?.kategorier ?? [],
+        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "PUT",
+    sti: "/api/innbyggerportal/placeholder/preferanser",
+    handter: async ({ request, response, url, tilstand, kaller }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      let preferanse;
+      try {
+        preferanse = await lagrePortalpreferanse(person.personId, body.kategorier);
+      } catch (feil) {
+        throw new HttpError(feil instanceof Error ? feil.message : "Ugyldige kategorier.", 400);
+      }
+      await addRevisjon({
+        sporingsId: getSporingsId(url),
+        handling: "PORTALPREFERANSER_OPPDATERT",
+        ressurs: "innbyggerportal-preferanser",
+        formaal: "Tilpasse anbefalte aktiviteter",
+        gjaldt: person.personId,
+        antall: preferanse.kategorier.length,
+        aktor: aktorFor(kaller, person.personId)
+      });
+      jsonResponse(response, 200, {
+        ...preferanse,
+        ferdigstilt: true,
+        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        mock: true,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    metode: "GET",
     sti: "/api/innbyggerportal/placeholder/tilbud",
     handter: async ({ response, url, tilstand, kaller }) => {
       const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
-      const resultat = portalalder(person);
+      const preferanse = await hentPortalpreferanse(person.personId);
+      const resultat = portalalder(person, preferanse?.kategorier ?? []);
+      const valgtTilbudId = url.searchParams.get("tilbudId");
+      const alleTilgjengelige = valgtTilbudId ? portalalder(person).aktiviteter : [];
+      const valgtAktivitet = alleTilgjengelige.find((aktivitet) =>
+        aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === valgtTilbudId)
+      ) ?? null;
       await addRevisjon({
         sporingsId: getSporingsId(url),
         handling: "PORTALTILBUD_VIST",
@@ -437,6 +498,9 @@ const ruter: Rute[] = [
       jsonResponse(response, 200, {
         personId: person.personId,
         ...resultat,
+        preferanserValgt: preferanse !== null,
+        valgteKategorier: preferanse?.kategorier ?? [],
+        valgtAktivitet,
         mock: true,
         syntetisk: true
       });

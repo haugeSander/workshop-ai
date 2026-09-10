@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { alderVed, norskKalenderdato } from "../../shared/alder.ts";
+import { readJson, updateJson } from "../../shared/jsonstore.ts";
 
 export type Tilgjengelighet = {
   rullestol?: boolean;
@@ -64,6 +65,12 @@ type Aktivitetsdata = {
   tilbydere: Tilbyder[];
 };
 
+export type Portalpreferanse = {
+  personId: string;
+  kategorier: string[];
+  oppdatert: string;
+};
+
 const PORTALALDER = 62;
 const fallbackDataUrl = new URL("../../../aktivitetstilbud.json", import.meta.url);
 const backendDataUrl = new URL("../../../data/senioraktiviteter.json", import.meta.url);
@@ -81,6 +88,36 @@ const katalog = await readKatalog();
 const KOMMUNENAVN = katalog.kommunenavn ?? "Ringerike";
 const KOMMUNENUMMER = katalog.kommunenummer ?? "3305";
 const SCHEMA_VERSJON = katalog.schemaVersjon ?? 1;
+const kategorier = [...new Set(katalog.aktiviteter.map((aktivitet) => aktivitet.kategori))].sort();
+
+export function hentAktivitetskategorier(): string[] {
+  return [...kategorier];
+}
+
+export async function hentPortalpreferanse(personId: string): Promise<Portalpreferanse | null> {
+  const preferanser = await readJson("innbyggerportal-preferanser.json", []);
+  return preferanser.find((preferanse: Portalpreferanse) => preferanse.personId === personId) ?? null;
+}
+
+export async function lagrePortalpreferanse(
+  personId: string,
+  valgteKategorier: unknown,
+  oppdatert: string = new Date().toISOString()
+): Promise<Portalpreferanse> {
+  const unike = Array.isArray(valgteKategorier)
+    ? [...new Set(valgteKategorier.filter((kategori): kategori is string => typeof kategori === "string"))]
+    : [];
+  if (unike.length === 0 || unike.some((kategori) => !kategorier.includes(kategori))) {
+    throw new Error("Velg minst én gyldig kategori.");
+  }
+  return updateJson("innbyggerportal-preferanser.json", [], (preferanser: Portalpreferanse[]) => {
+    const preferanse = { personId, kategorier: unike.sort(), oppdatert };
+    const indeks = preferanser.findIndex((kandidat) => kandidat.personId === personId);
+    if (indeks === -1) preferanser.push(preferanse);
+    else preferanser[indeks] = preferanse;
+    return preferanse;
+  });
+}
 
 export function hentAktivitetskatalog() {
   return {
@@ -97,17 +134,29 @@ export function hentAktivitetskatalog() {
 export function hentPortaltilbud(
   foedselsdato: string,
   kommunenummer: string | null | undefined,
-  referansedato: string = norskKalenderdato()
+  referansedato: string = norskKalenderdato(),
+  valgteKategorier?: string[]
 ) {
   const alder = alderVed(foedselsdato, referansedato);
   const portalTilgjengelig = alder >= PORTALALDER && kommunenummer === KOMMUNENUMMER;
+  const forAlder = katalog.aktiviteter.filter((aktivitet) =>
+    aktivitet.maalgrupper.some((maalgruppe) =>
+      !maalgruppe.alder || (
+        alder >= (maalgruppe.alder.fraAar ?? 0)
+        && alder <= (maalgruppe.alder.tilAar ?? Number.POSITIVE_INFINITY)
+      )
+    )
+  );
+  const aktiviteter = valgteKategorier === undefined
+    ? forAlder
+    : forAlder.filter((aktivitet) => valgteKategorier.includes(aktivitet.kategori));
   return {
     alder,
     portalTilgjengelig,
     kommunenavn: KOMMUNENAVN,
     kommunenummer: KOMMUNENUMMER,
     schemaVersjon: SCHEMA_VERSJON,
-    aktiviteter: portalTilgjengelig ? katalog.aktiviteter : [],
+    aktiviteter: portalTilgjengelig ? aktiviteter : [],
     tilbydere: portalTilgjengelig ? katalog.tilbydere : []
   };
 }

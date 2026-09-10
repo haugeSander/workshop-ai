@@ -4,6 +4,7 @@ const backendBase = "http://localhost:8080";
 
 const PORTAL_ENDPOINTS = {
   meg: "/api/innbyggerportal/placeholder/meg",
+  preferanser: "/api/innbyggerportal/placeholder/preferanser",
   tilbud: "/api/innbyggerportal/placeholder/tilbud",
   kontaktinfo: "/api/innbyggerportal/placeholder/kontaktinfo",
   registreringer: "/api/innbyggerportal/placeholder/registreringer"
@@ -42,6 +43,15 @@ type Portalrespons = {
   kommunenummer: string;
   aktiviteter: Aktivitet[];
   tilbydere: { tilbyderId: string; navn: string }[];
+  preferanserValgt: boolean;
+  valgteKategorier: string[];
+  valgtAktivitet: Aktivitet | null;
+};
+
+type Portalpreferanser = {
+  ferdigstilt: boolean;
+  kategorier: string[];
+  tilgjengeligeKategorier: string[];
 };
 
 type Kontaktinfo = {
@@ -51,6 +61,11 @@ type Kontaktinfo = {
 
 const statusEl = krevEl("status");
 const introEl = krevEl("intro");
+const preferanseseksjonEl = krevEl("preferanseseksjon");
+const preferansevalgEl = krevEl("preferansevalg");
+const preferansefeilEl = krevEl("preferansefeil");
+const lagrePreferanserKnapp = krevEl<HTMLButtonElement>("lagrePreferanser");
+const avbrytPreferanserKnapp = krevEl<HTMLButtonElement>("avbrytPreferanser");
 const tilbudsseksjonEl = krevEl("tilbudsseksjon");
 const tilbudEl = krevEl("tilbud");
 const paameldingsseksjonEl = krevEl("paameldingsseksjon");
@@ -61,7 +76,20 @@ const kvitteringEl = krevEl("kvittering");
 
 let person: Portalperson;
 let portal: Portalrespons;
+let preferanser: Portalpreferanser;
 let valgtTilbudId: string | null = null;
+
+const kategorinavn: Record<string, string> = {
+  "bolig-og-hverdagsmestring": "Bolig og hverdagsmestring",
+  dagaktivitet: "Dagaktivitet",
+  "digital-mestring": "Digital mestring",
+  "friluftsliv-og-trening": "Friluftsliv og trening",
+  "frivillighet-og-sosial-stotte": "Frivillighet og sosial støtte",
+  "helse-og-trening": "Helse og trening",
+  "kultur-og-fellesskap": "Kultur og fellesskap",
+  "mat-og-ernaering": "Mat og ernæring",
+  "psykisk-helse-og-mestring": "Psykisk helse og mestring"
+};
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tagg: K,
@@ -124,32 +152,38 @@ function leggTilDetalj(liste: HTMLUListElement, navn: string, verdi: string | nu
   if (verdi) liste.append(element("li", undefined, `${navn}: ${verdi}`));
 }
 
-function erAnbefalt(aktivitet: Aktivitet): boolean {
-  return aktivitet.maalgrupper.some((maalgruppe) => {
-    if (!maalgruppe.alder) return true;
-    return portal.alder >= (maalgruppe.alder.fraAar ?? 0)
-      && portal.alder <= (maalgruppe.alder.tilAar ?? Number.POSITIVE_INFINITY);
-  });
+function kategorinavnFor(kategori: string): string {
+  return kategorinavn[kategori] ?? lesbarKode(kategori);
 }
 
 function finnTilbud(tilbudId: string): { aktivitet: Aktivitet; tilbud: Tilbud } | null {
-  for (const aktivitet of portal.aktiviteter) {
+  const aktiviteter = portal.valgtAktivitet
+    ? [...portal.aktiviteter, portal.valgtAktivitet]
+    : portal.aktiviteter;
+  for (const aktivitet of aktiviteter) {
     const tilbud = aktivitet.tilbud.find((kandidat) => kandidat.tilbudId === tilbudId);
     if (tilbud) return { aktivitet, tilbud };
   }
   return null;
 }
 
+function tilbudssti(): string {
+  const tilbudId = new URLSearchParams(location.search).get("tilbudId");
+  return tilbudId
+    ? `${PORTAL_ENDPOINTS.tilbud}?tilbudId=${encodeURIComponent(tilbudId)}`
+    : PORTAL_ENDPOINTS.tilbud;
+}
+
 function renderAnbefalinger(): void {
   tilbudEl.replaceChildren();
-  const anbefalte = portal.aktiviteter.filter(erAnbefalt);
+  const anbefalte = portal.aktiviteter;
   for (const aktivitet of anbefalte) {
     const kort = element("article", "ds-card portal-card");
     const innhold = element("div", "ds-card__block");
     innhold.append(
       element("h3", "ds-heading", aktivitet.navn),
       element("p", "ds-paragraph", aktivitet.beskrivelse),
-      element("p", "portal-meta", `Anbefalt ut fra alder ${portal.alder} år og bosted i ${portal.kommunenavn}`)
+      element("p", "portal-meta", `Anbefalt fordi du valgte ${kategorinavnFor(aktivitet.kategori).toLowerCase()}`)
     );
     kort.append(innhold);
 
@@ -179,6 +213,57 @@ function renderAnbefalinger(): void {
   tilbudsseksjonEl.hidden = anbefalte.length === 0;
   if (anbefalte.length === 0) {
     visStatus("Vi fant ingen anbefalte aktiviteter for opplysningene dine.", "warning");
+  }
+}
+
+function renderPreferanser(): void {
+  preferansevalgEl.replaceChildren();
+  for (const kategori of preferanser.tilgjengeligeKategorier) {
+    const felt = element("div", "ds-field portal-preference");
+    const avkrysning = element("input", "ds-input") as HTMLInputElement;
+    avkrysning.type = "checkbox";
+    avkrysning.name = "kategori";
+    avkrysning.value = kategori;
+    avkrysning.id = `preferanse-${kategori}`;
+    avkrysning.checked = preferanser.kategorier.includes(kategori);
+    const etikett = element("label", "ds-label", kategorinavnFor(kategori));
+    etikett.htmlFor = avkrysning.id;
+    etikett.dataset.weight = "regular";
+    felt.append(avkrysning, etikett);
+    preferansevalgEl.append(felt);
+  }
+}
+
+function visPreferanser(redigering: boolean): void {
+  renderPreferanser();
+  preferansefeilEl.hidden = true;
+  tilbudsseksjonEl.hidden = true;
+  paameldingsseksjonEl.hidden = true;
+  avbrytPreferanserKnapp.hidden = !redigering;
+  preferanseseksjonEl.hidden = false;
+}
+
+async function lagrePreferanser(): Promise<void> {
+  const kategorier = [...preferansevalgEl.querySelectorAll<HTMLInputElement>('input[name="kategori"]:checked')]
+    .map((felt) => felt.value);
+  if (kategorier.length === 0) {
+    preferansefeilEl.textContent = "Velg minst én kategori.";
+    preferansefeilEl.hidden = false;
+    return;
+  }
+  lagrePreferanserKnapp.disabled = true;
+  try {
+    preferanser = await api<Portalpreferanser>(PORTAL_ENDPOINTS.preferanser, {
+      method: "PUT",
+      body: JSON.stringify({ kategorier })
+    });
+    portal = await api<Portalrespons>(tilbudssti());
+    preferanseseksjonEl.hidden = true;
+    renderAnbefalinger();
+    const tilbudId = new URLSearchParams(location.search).get("tilbudId");
+    if (tilbudId) await visOppsummering(tilbudId);
+  } finally {
+    lagrePreferanserKnapp.disabled = false;
   }
 }
 
@@ -240,9 +325,10 @@ function avbrytPaamelding(): void {
 
 async function start(): Promise<void> {
   if (!(await requireLogin())) return;
-  [person, portal] = await Promise.all([
+  [person, portal, preferanser] = await Promise.all([
     api<Portalperson>(PORTAL_ENDPOINTS.meg),
-    api<Portalrespons>(PORTAL_ENDPOINTS.tilbud)
+    api<Portalrespons>(tilbudssti()),
+    api<Portalpreferanser>(PORTAL_ENDPOINTS.preferanser)
   ]);
   krevEl("merkenavn").textContent = `${person.bostedsadresse?.kommune ?? "Min"} aktivitetsportal`;
   krevEl("tittel").textContent = `Hei, ${person.visningsnavn}`;
@@ -260,13 +346,22 @@ async function start(): Promise<void> {
   }
   statusEl.hidden = true;
   introEl.hidden = false;
-  if (portal.portalTilgjengelig) renderAnbefalinger();
+  if (portal.portalTilgjengelig) {
+    if (preferanser.ferdigstilt) renderAnbefalinger();
+    else visPreferanser(false);
+  }
 
   const tilbudId = new URLSearchParams(location.search).get("tilbudId");
-  if (tilbudId && portal.portalTilgjengelig) await visOppsummering(tilbudId);
+  if (tilbudId && portal.portalTilgjengelig && preferanser.ferdigstilt) await visOppsummering(tilbudId);
 }
 
 krevEl<HTMLButtonElement>("byttBruker").addEventListener("click", switchUser);
+lagrePreferanserKnapp.addEventListener("click", () => void lagrePreferanser());
+avbrytPreferanserKnapp.addEventListener("click", () => {
+  preferanseseksjonEl.hidden = true;
+  tilbudsseksjonEl.hidden = false;
+});
+krevEl<HTMLButtonElement>("endrePreferanser").addEventListener("click", () => visPreferanser(true));
 bekreftKnapp.addEventListener("click", () => void bekreftPaamelding());
 krevEl<HTMLButtonElement>("avbrytPaamelding").addEventListener("click", avbrytPaamelding);
 

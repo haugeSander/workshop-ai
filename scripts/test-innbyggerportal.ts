@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { norskKalenderdato } from "../apps/shared/alder.ts";
 import {
+  hentAktivitetskategorier,
   hentAktivitetskatalog,
   hentPortaltilbud
 } from "../apps/sandbox-backend/src/innbyggerportal.ts";
@@ -41,6 +42,12 @@ const tilbud = aktivitet.tilbud.find(
 );
 assert.ok(tilbud);
 assert.ok(fra62.tilbydere.some((tilbyder) => tilbyder.tilbyderId === tilbud.tilbyderId));
+
+const kategorier = hentAktivitetskategorier();
+assert.ok(kategorier.includes("mat-og-ernaering"));
+const anbefalte = hentPortaltilbud("1964-09-10", "3305", "2026-09-10", ["mat-og-ernaering"]);
+assert.ok(anbefalte.aktiviteter.length > 0);
+assert.ok(anbefalte.aktiviteter.every((kandidat) => kandidat.kategori === "mat-og-ernaering"));
 
 const annenKommune = hentPortaltilbud("1964-09-10", "0301", "2026-09-10");
 assert.equal(annenKommune.portalTilgjengelig, false);
