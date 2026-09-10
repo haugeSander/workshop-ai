@@ -71,6 +71,17 @@ export type Utsending = {
   tidspunkt: string;
 };
 
+/**
+ * Ledgeren, slik den står. Nyeste først.
+ *
+ * Egen funksjon framfor at ruten leser filen selv: `state/utsendinger.json` har
+ * to skrivere, og en tredje leser som kjenner filnavnet er en til å holde i takt.
+ */
+export async function lesUtsendinger(): Promise<Utsending[]> {
+  const rader = (await readJson("utsendinger.json", [])) as Utsending[];
+  return rader.slice().sort((a, b) => b.tidspunkt.localeCompare(a.tidspunkt));
+}
+
 export type Varselkandidat = {
   personId: string;
   /** Mottakerens digitalId hos Fiks. Slaas opp i KRR der, ikke her. */
@@ -165,6 +176,8 @@ export function byggVarseltekst(kommunenavn: string): string {
 }
 
 export type Varslingsresultat = {
+  /** Grunnlaget, med i svaret så en flate ikke må bære sin egen kopi av det. */
+  hjemmel: typeof VARSELHJEMMEL;
   torrkjoer: boolean;
   kommunenummer: string;
   vurdert: number;
@@ -238,6 +251,7 @@ export async function kjoerVarsling(
       ((await readJson("utsendinger.json", [])) as Utsending[]).map((rad) => rad.noekkel));
     const nye = kandidater.filter((kandidat) => !sendt.has(utsendingsnoekkel(kandidat)));
     return {
+      hjemmel: VARSELHJEMMEL,
       torrkjoer: true,
       kommunenummer: katalog.kommunenummer,
       vurdert: kandidater.length,
@@ -304,6 +318,7 @@ export async function kjoerVarsling(
   }
 
   return {
+    hjemmel: VARSELHJEMMEL,
     torrkjoer: false,
     kommunenummer: katalog.kommunenummer,
     vurdert: kandidater.length,

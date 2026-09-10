@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="nb" data-color-scheme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Varsling om seniortilbud</title>
+    <link rel="stylesheet" href="https://static.fiks.ks.no/googlefonts/googleapis/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="/assets/ds-base.css" />
+    <link rel="stylesheet" href="/assets/ds-ksdigital.css" />
+    <style>
+      @layer side;
+      @layer side {
+        body { margin: 0; background: var(--ds-color-background-default); color: var(--ds-color-text-default); }
+        .v-header { border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-default); }
+        .v-header__inner, .v-main { max-width: 72rem; margin: 0 auto; padding-inline: var(--ds-size-4); }
+        .v-header__inner { min-height: var(--ds-size-16); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-size-4); }
+        .v-main { display: grid; gap: var(--ds-size-8); padding-block: var(--ds-size-8) var(--ds-size-18); }
+        .v-intro { max-width: 46rem; display: grid; gap: var(--ds-size-3); }
+        .v-section { display: grid; gap: var(--ds-size-4); }
+        .v-knapper { display: flex; flex-wrap: wrap; gap: var(--ds-size-3); align-items: center; }
+        .v-tall { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--ds-size-3); }
+        .v-tall__rute { display: grid; gap: var(--ds-size-1); }
+        .v-tall__verdi { font-size: var(--ds-font-size-7); font-weight: 600; line-height: 1.1; }
+        .v-tabellramme { overflow-x: auto; }
+        .v-tabellramme table { min-width: 44rem; }
+        .v-sms { display: grid; gap: var(--ds-size-2); }
+        .v-sms__boble { max-width: 26rem; padding: var(--ds-size-3) var(--ds-size-4);
+          border-radius: var(--ds-border-radius-lg); background: var(--ds-color-info-surface-default);
+          border: var(--ds-border-width-default) solid var(--ds-color-info-border-subtle); }
+        .v-sms__hode { display: flex; gap: var(--ds-size-2); align-items: baseline; flex-wrap: wrap; }
+        .v-filter { display: flex; flex-wrap: wrap; gap: var(--ds-size-5); align-items: start; }
+        .v-filter .ds-field { min-width: 16rem; }
+        .v-logg { display: grid; gap: var(--ds-size-3); }
+        .v-logg__rad { display: grid; gap: var(--ds-size-2); padding: var(--ds-size-4);
+          border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+          border-radius: var(--ds-border-radius-md); background: var(--ds-color-surface-default); }
+        .v-logg__hode { display: flex; flex-wrap: wrap; gap: var(--ds-size-2);
+          align-items: baseline; justify-content: space-between; }
+        .v-logg__merker { display: flex; flex-wrap: wrap; gap: var(--ds-size-2); align-items: center; }
+        .v-logg__tid { color: var(--ds-color-text-subtle); }
+        .v-sms__boble--ulevert { background: var(--ds-color-neutral-surface-default);
+          border-color: var(--ds-color-border-subtle); border-style: dashed;
+          color: var(--ds-color-text-subtle); }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="v-header">
+      <div class="v-header__inner">
+        <div>
+          <p class="ds-heading" data-size="xs" style="margin: 0">Ringerike kommune</p>
+          <p class="ds-paragraph" data-size="sm" style="margin: 0; color: var(--ds-color-text-subtle)">
+            Fagsystem - utgående varsling
+          </p>
+        </div>
+        <a class="ds-link" href="/">Til oversikten</a>
+      </div>
+    </header>
+
+    <main class="v-main">
+      <section class="v-intro">
+        <h1 class="ds-heading" data-size="lg">Varsling om seniortilbud</h1>
+        <p class="ds-paragraph" data-variant="long">
+          De som har mest å hente på et kommunalt seniortilbud er ofte de samme som ikke
+          oppdager det. Denne jobben finner innbyggere som har rett til tilbudet, og
+          sender dem ett varsel om at det finnes.
+        </p>
+      </section>
+
+      <!--
+        Hjemmelen står øverst og ikke i en fotnote. Et uanmodet varsel er behandling av
+        personopplysninger, og det er *ikke* samtykke - innbyggeren er aldri spurt.
+        Hele poenget med siden er at det skal være det første man ser.
+      -->
+      <section class="v-section">
+        <div class="ds-alert" data-color="info">
+          <h2 class="ds-heading" data-size="2xs">Grunnlaget er ikke samtykke</h2>
+          <p class="ds-paragraph" data-size="sm" data-variant="long">
+            Innbyggeren har ikke bedt om noe. Hun fyller 62 og bor i kommunen, og så får
+            hun en melding. Grunnlaget er derfor
+            <strong id="behandlingsgrunnlag">…</strong>, supplert av
+            <strong id="suppleringsgrunnlag">…</strong>.
+          </p>
+          <p class="ds-paragraph" data-size="sm" data-variant="long">
+            Det føres i revisjonsloggen på hver kjøring, også en tørrkjøring - den har
+            lest befolkningen like fullt.
+          </p>
+        </div>
+      </section>
+
+      <section class="v-section">
+        <h2 class="ds-heading" data-size="sm">Kjør jobben</h2>
+        <div class="v-knapper">
+          <button class="ds-button" type="button" data-variant="secondary" id="knappTorr">
+            Tørrkjør - vis hvem som ville fått varsel
+          </button>
+          <button class="ds-button" type="button" id="knappSend">Send varslene</button>
+          <span class="ds-spinner" id="spinner" hidden aria-hidden="true" data-size="sm"></span>
+        </div>
+        <div class="ds-alert" id="melding" hidden aria-live="polite"></div>
+        <div class="v-tall" id="tall" hidden></div>
+      </section>
+
+      <section class="v-section" id="utsendingerSeksjon" hidden>
+        <h2 class="ds-heading" data-size="sm">Hvem, og på hvilken kanal</h2>
+        <p class="ds-paragraph" data-size="sm" data-variant="long">
+          Kolonnen «brev» står ved siden av med vilje. Et varsel har ingen papirkanal -
+          en påminnelse i posten kommer etter turen - så en innbygger som er reservert
+          mot digital kommunikasjon får vedtaket sitt på papir og ingen melding.
+          De to kolonnene skal <em>ikke</em> stemme overens.
+        </p>
+        <div class="v-tabellramme">
+          <table class="ds-table" data-size="sm">
+            <caption class="ds-sr-only">Innbyggere som kvalifiserer, med kanal og begrunnelse</caption>
+            <thead>
+              <tr>
+                <th scope="col">Person</th>
+                <th scope="col">Status</th>
+                <th scope="col">Varselkanal</th>
+                <th scope="col">Hvorfor ikke</th>
+                <th scope="col">Brev ville gått på</th>
+              </tr>
+            </thead>
+            <tbody id="utsendinger"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="v-section" id="loggSeksjon" hidden>
+        <h2 class="ds-heading" data-size="sm">Logg over sendte varsler</h2>
+        <p class="ds-paragraph" data-size="sm" data-variant="long">
+          Hele historikken, ikke bare siste kjøring. Radene er ledgeren i
+          <code>state/utsendinger.json</code>, slått sammen med teksten fra
+          <code>GET /fiks/varsler</code> på <code>varselId</code>. Nyeste først.
+        </p>
+
+        <div class="v-filter">
+          <div class="ds-field">
+            <label class="ds-label" for="personfilter">Vis varsler til</label>
+            <select class="ds-input" id="personfilter">
+              <option value="">Alle mottakere</option>
+            </select>
+            <p class="ds-paragraph" data-size="xs" data-field="description" id="filterhint">
+              Bare innbyggere som står i loggen.
+            </p>
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="utfallfilter">Utfall</label>
+            <select class="ds-input" id="utfallfilter">
+              <option value="">Alle</option>
+              <option value="sendt">Bare sendt</option>
+              <option value="ikke_naadd">Bare ikke nådd</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="ds-paragraph" data-size="sm" id="loggtelling" aria-live="polite"></p>
+        <div class="v-logg" id="logg"></div>
+      </section>
+    </main>
+
+    <script src="/delt/felles.ts"></script>
+    <script type="module" src="/client/varsling.ts"></script>
+  </body>
+</html>

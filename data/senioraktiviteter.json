@@ -59,7 +59,8 @@
                 "fredag"
               ],
               "fraKlokkeslett": "10:00",
-              "tilKlokkeslett": "12:00"
+              "tilKlokkeslett": "12:00",
+              "dato": "2026-09-15"
             }
           ],
           "paamelding": {
@@ -139,7 +140,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": true
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-16",
+              "fraKlokkeslett": "11:00",
+              "tilKlokkeslett": "13:00"
+            }
+          ]
         }
       ],
       "kilder": [
@@ -224,7 +232,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": true
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-17",
+              "fraKlokkeslett": "13:00",
+              "tilKlokkeslett": "15:00"
+            }
+          ]
         }
       ],
       "kilder": [
@@ -277,7 +292,9 @@
               "sesong": {
                 "fraMaaned": 4,
                 "tilMaaned": 10
-              }
+              },
+              "dato": "2026-09-18",
+              "tilKlokkeslett": "16:00"
             }
           ],
           "steder": [
@@ -342,7 +359,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": true
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-21",
+              "fraKlokkeslett": "10:30",
+              "tilKlokkeslett": "12:00"
+            }
+          ]
         }
       ],
       "kilder": [
@@ -411,7 +435,8 @@
           "tidspunkter": [
             {
               "fraKlokkeslett": "08:30",
-              "tilKlokkeslett": "15:00"
+              "tilKlokkeslett": "15:00",
+              "dato": "2026-09-22"
             }
           ],
           "pris": {
@@ -488,7 +513,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": false
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-23",
+              "fraKlokkeslett": "14:00",
+              "tilKlokkeslett": "16:00"
+            }
+          ]
         }
       ],
       "inspirertAv": [
@@ -544,7 +576,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": true
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-24",
+              "fraKlokkeslett": "16:00",
+              "tilKlokkeslett": "18:00"
+            }
+          ]
         }
       ],
       "inspirertAv": [
@@ -588,7 +627,14 @@
           "paamelding": {
             "kreves": true,
             "informasjon": "Match mellom frivillig og deltaker må avklares."
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-15",
+              "fraKlokkeslett": "10:00",
+              "tilKlokkeslett": "12:00"
+            }
+          ]
         }
       ],
       "inspirertAv": [
@@ -645,7 +691,14 @@
           "tilgjengelighet": {
             "rullestol": true,
             "teleslynge": false
-          }
+          },
+          "tidspunkter": [
+            {
+              "dato": "2026-09-16",
+              "fraKlokkeslett": "11:00",
+              "tilKlokkeslett": "13:00"
+            }
+          ]
         }
       ],
       "inspirertAv": [

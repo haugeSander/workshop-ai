@@ -357,6 +357,67 @@ function tokenKey(audience = STANDARD_AUDIENCE): string {
   return audience === STANDARD_AUDIENCE ? TOKEN_KEY : `${TOKEN_KEY}:${audience}`;
 }
 
+const maskinportenBuffer = new Map<string, string>();
+
+function base64urlTekst(tekst: string): string {
+  return btoa(unescape(encodeURIComponent(tekst)))
+    .replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+/*
+ * MASKINPORTEN, BYGGET I NETTLESEREN.
+ *
+ * digdir-mock validerer assertionen på form og ikke på signatur, så siden kan
+ * lage den selv. Hvert felt ekte Maskinporten krever er fortsatt påkrevd, så
+ * formen man lærer her er riktig.
+ *
+ * MEN: ekte Maskinporten krever en assertion signert med en privat nøkkel som er
+ * registrert på klienten - en nøkkel en nettleser aldri skal holde. I virkelig
+ * drift er det kommunens eget fagsystem som henter dette tokenet, ikke en side.
+ * Derfor står merkelappen i UI-et ved siden av tokenet, ikke bare her.
+ *
+ * Her og ikke i én sidefil, fordi to sider henter maskintokener nå:
+ * API-utforskeren og varslingssiden. To kopier av en funksjon som bærer et
+ * sikkerhetsforbehold er to steder forbeholdet kan bli stående mens koden endrer
+ * seg.
+ */
+async function maskinportenToken(audience: string, scope: string): Promise<string> {
+  const noekkel = `${audience}|${scope}`;
+  const bufret = maskinportenBuffer.get(noekkel);
+  if (bufret && claimsValid(claimsIn(bufret))) return bufret;
+
+  const naa = Math.floor(Date.now() / 1000);
+  const assertion = [
+    base64urlTekst(JSON.stringify({ alg: "RS256", typ: "JWT" })),
+    base64urlTekst(JSON.stringify({
+      iss: "api-utforsker",
+      aud: IDPORTEN_BASE,
+      scope,
+      resource: audience,
+      orgnr: "991825827",
+      iat: naa,
+      exp: naa + 30
+    })),
+    "signaturen-sjekkes-ikke-i-sandkassen"
+  ].join(".");
+
+  const svar = await fetch(`${IDPORTEN_BASE}/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+      resource: audience
+    })
+  });
+  const data = (await svar.json()) as { access_token?: string; error?: string; error_description?: string };
+  if (!svar.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || `status ${svar.status}`);
+  }
+  maskinportenBuffer.set(noekkel, data.access_token);
+  return data.access_token;
+}
+
 function base64url(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(String.fromCharCode(...new Uint8Array(bytes)))
     .replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");

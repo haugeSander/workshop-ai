@@ -42,6 +42,7 @@ const KLIENTFILER: Record<string, string> = {
   "ds-eksempel.ts": KLIENTSKRIPT,
   "aktiviteter.ts": KLIENTSKRIPT,
   "innbyggerportal.ts": KLIENTSKRIPT,
+  "varsling.ts": KLIENTSKRIPT,
   "callback.ts": KLIENTSKRIPT
 };
 
@@ -59,6 +60,7 @@ const sider: Record<string, string> = {
   "/utforsker": "utforsker.html",
   "/aktiviteter": "aktiviteter.html",
   "/innbyggerportal": "innbyggerportal.html",
+  "/varsling": "varsling.html",
   // Template for teams building their own frontend. See docs/designsystem.md.
   "/ds-eksempel": "ds-eksempel.html",
   // The redirect_uri registered with ID-porten. Same path for every page: the page

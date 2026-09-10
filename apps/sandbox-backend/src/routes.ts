@@ -23,7 +23,7 @@ import {
   representantPider
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
-import { kjoerVarsling } from "./varsling.ts";
+import { kjoerVarsling, lesUtsendinger, VARSELHJEMMEL } from "./varsling.ts";
 import { routeOverview } from "../../shared/openapi.ts";
 import { finnPortaltilbud, hentAktivitetskatalog, hentPortaltilbud } from "./innbyggerportal.ts";
 import {
@@ -878,6 +878,30 @@ const ruter: Rute[] = [
           sporingsId: getSporingsId(url),
           torrkjoer: url.searchParams.get("torrkjor") === "true"
         })),
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /*
+     * Ledgeren, lest.
+     *
+     * Den *utleder ikke* kandidater, og det er med vilje: å lese befolkningen for
+     * å avgjøre hvem som skal kontaktes er behandlingen som trenger en hjemmel, og
+     * den føres hver gang den skjer. Å åpne en statusside er ikke den behandlingen.
+     * Vil du ha kandidatlisten, kall `kjor?torrkjor=true` - den logger, som den skal.
+     */
+    metode: "GET",
+    sti: "/api/varsel/seniorsirkel/utsendinger",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response }) => {
+      const utsendinger = await lesUtsendinger();
+      jsonResponse(response, 200, {
+        hjemmel: VARSELHJEMMEL,
+        utsendinger,
+        antall: utsendinger.length,
         syntetisk: true
       });
     }

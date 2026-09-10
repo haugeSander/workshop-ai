@@ -98,7 +98,6 @@ function showBanner(tekst: string | null): void {
  * Maskinporten-tokenene hentes uten at deltakeren trenger å gjøre noe.
  */
 
-const maskinportenBuffer = new Map<string, string>();
 /** Satt av «bruk mitt eget token» i identitetskortet. Overstyrer alt. */
 let manueltToken: string | null = null;
 /** Ordningen deltakeren har valgt for den valgte ruten, når den godtar flere. */
@@ -115,58 +114,6 @@ function hjemmelFor(rute: Rute): { tekst: string; lukket: boolean } {
   return { tekst: rute.security.join(" eller ") + scopes, lukket: true };
 }
 
-function base64urlText(tekst: string): string {
-  return btoa(unescape(encodeURIComponent(tekst)))
-    .replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
-}
-
-/*
- * MASKINPORTEN, BYGGET I NETTLESEREN.
- *
- * digdir-mock validerer assertionen på form og ikke på signatur, så siden kan
- * lage den selv. Hvert felt ekte Maskinporten krever er fortsatt påkrevd, så
- * formen man lærer her er riktig.
- *
- * MEN: ekte Maskinporten krever en assertion signert med en privat nøkkel som
- * er registrert på klienten - en nøkkel en nettleser aldri skal holde. Derfor
- * står merkelappen i UI-et ved siden av tokenet, ikke bare her.
- */
-async function getMaskinportenToken(audience: string, scope: string): Promise<string> {
-  const noekkel = `${audience}|${scope}`;
-  const bufret = maskinportenBuffer.get(noekkel);
-  if (bufret && claimsValid(claimsIn(bufret))) return bufret;
-
-  const naa = Math.floor(Date.now() / 1000);
-  const assertion = [
-    base64urlText(JSON.stringify({ alg: "RS256", typ: "JWT" })),
-    base64urlText(JSON.stringify({
-      iss: "api-utforsker",
-      aud: DIGDIR,
-      scope,
-      resource: audience,
-      orgnr: "991825827",
-      iat: naa,
-      exp: naa + 30
-    })),
-    "signaturen-sjekkes-ikke-i-sandkassen"
-  ].join(".");
-
-  const svar = await fetch(`${DIGDIR}/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
-      resource: audience
-    })
-  });
-  const data = (await svar.json()) as { access_token?: string; error?: string; error_description?: string };
-  if (!svar.ok || !data.access_token) {
-    throw new Error(data.error_description || data.error || `status ${svar.status}`);
-  }
-  maskinportenBuffer.set(noekkel, data.access_token);
-  return data.access_token;
-}
 
 /**
  * Hvilken ordning som brukes for en rute. Godtar ruten flere, kan deltakeren
@@ -226,7 +173,7 @@ async function getCredentials(rute: Rute): Promise<Legitimasjon> {
     const scope: string | undefined = rute.scopes[0];
     if (!scope) return { mangler: "Spesifikasjonen oppgir maskinporten uten scope." };
     try {
-      const token = await getMaskinportenToken(audience, scope);
+      const token = await maskinportenToken(audience, scope);
       return {
         header: { Authorization: `Bearer ${token}` },
         hva: `Maskinporten-token, scope ${scope}, aud ${audience}`,

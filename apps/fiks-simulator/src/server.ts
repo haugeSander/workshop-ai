@@ -653,6 +653,7 @@ function docsHtml(): string {
         <li><code>GET /fiks/oppgaver/{oppgaveId}</code></li>
         <li><code>PUT /fiks/oppgaver/{oppgaveId}/status</code></li>
         <li><code>POST /fiks/varsler</code></li>
+        <li><code>GET /fiks/varsler</code></li>
         <li><code>POST /fiks/meldinger</code></li>
         <li><code>GET /fiks/meldinger/{meldingId}</code></li>
       </ul>
@@ -1255,6 +1256,25 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
         ...(utfall.grunn ? { grunn: utfall.grunn } : {}),
         syntetisk: true
       });
+      return;
+    }
+
+    /*
+     * Utboksen. Uten den er «hva sto det i SMS-en» et spørsmål man må svare på ved
+     * å åpne en fil i state/, og et varsel ingen kan vise fram er vanskelig å tro
+     * på. Nyeste først, som en innboks.
+     *
+     * Radene bærer teksten - det er en beskjed vi selv har skrevet - men aldri
+     * telefonnummeret. `kanal` sier nok om hvordan den gikk.
+     */
+    if (request.method === "GET" && url.pathname === "/fiks/varsler") {
+      await requireVarselHjemmel(request);
+      const alle = await tilstand.varsler();
+      const type = url.searchParams.get("type");
+      const rader = (type ? alle.filter((rad) => rad.type === type) : alle)
+        .slice()
+        .sort((a, b) => b.opprettet.localeCompare(a.opprettet));
+      jsonResponse(response, 200, { varsler: rader, antall: rader.length, syntetisk: true });
       return;
     }
 
