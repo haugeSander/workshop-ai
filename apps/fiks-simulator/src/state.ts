@@ -10,6 +10,7 @@
 
 import type { Husstand, Krr, Person, Plass, Samtykke } from "../../shared/innbyggerdata.ts";
 import type { FolkeregisterPerson } from "../../shared/registerdata.ts";
+import type { Varselgrunn, Varselkanal, Varseltype } from "../../shared/varsel.ts";
 import type { Forsendelse } from "./forsendelse.ts";
 import type { Inntekt } from "../../shared/inntekt.ts";
 export type { Inntekt, Inntektspost } from "../../shared/inntekt.ts";
@@ -54,6 +55,27 @@ export type Melding = {
   syntetisk?: boolean;
 };
 
+/**
+ * Ett sendt varsel. `kanal` og `grunn` er avgjørelsen slik den ble tatt, lagret på
+ * raden - ikke utledet på nytt ved lesing. Kontaktregisteret kan ha endret seg
+ * siden, og spørsmålet loggen skal svare på er hva som faktisk gikk ut.
+ *
+ * `tekst` lagres. Det er en beskjed vi selv har skrevet til innbyggeren, ikke en
+ * opplysning om henne, og «hva sto det i SMS-en» er det første noen spør om.
+ * Telefonnummeret lagres derimot ikke: kanalen sier nok.
+ */
+export type Varsel = {
+  varselId: string;
+  type: Varseltype;
+  digitalId: string;
+  tekst: string;
+  kanal: Varselkanal;
+  grunn?: Varselgrunn;
+  eksternReferanse?: string;
+  opprettet: string;
+  syntetisk?: boolean;
+};
+
 /** Samtykket slik denne tjenesten skriver det - videre enn backendens lesing. */
 export type FiksSamtykke = Samtykke & {
   formaal?: string;
@@ -87,7 +109,8 @@ export function createStateReader() {
     samtykker: (): Promise<FiksSamtykke[]> => read("samtykker.json", []),
     oppgaver: (): Promise<Oppgave[]> => read("oppgaver.json", []),
     forsendelser: (): Promise<Forsendelse[]> => read("forsendelser.json", []),
-    meldinger: (): Promise<Melding[]> => read("meldinger.json", [])
+    meldinger: (): Promise<Melding[]> => read("meldinger.json", []),
+    varsler: (): Promise<Varsel[]> => read("varsler.json", [])
   };
 }
 

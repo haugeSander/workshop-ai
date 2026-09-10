@@ -1086,6 +1086,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/Feil"
 
+  /api/varsel/seniorsirkel/kjor:
+    post:
+      summary: Kjør den utgående varslingen om seniortilbud
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Kommunens egen jobb, ikke en innbyggerhandling. Derfor bare Maskinporten og
+        et eget scope: et lesetoken skal ikke kunne utløse en utsending til alle
+        over 62, og en ID-porten-innlogging skal ikke kunne utløse den i det hele
+        tatt.
+
+        Samme kodevei som `node scripts/varsle-seniorsirkel.ts` - `kjoerVarsling` i
+        `varsling.ts` er den ene implementasjonen, og dette er den andre inngangen
+        til den.
+
+        **Varselet er uanmodet, og grunnlaget er ikke samtykke.** Innbyggeren har
+        ikke bedt om noe; hun fyller 62 og bor i kommunen. Grunnlaget er oppgaven i
+        allmennhetens interesse, supplert av kommunens informasjonsplikt, og det
+        føres i revisjonsloggen på hver kjøring - også på en tørrkjøring, som har
+        lest befolkningen like fullt.
+
+        Jobben er idempotent per forekomst: `state/utsendinger.json` er ledgeren, og
+        nøkkelen klemmes fast før noe sendes, slik at to samtidige kjøringer ikke
+        begge kan se «ikke sendt ennå». En andre kjøring sender null.
+      parameters:
+        - name: torrkjor
+          in: query
+          required: false
+          description: >
+            `true` regner ut utvalget og sender ingenting. Ingen rad skrives, og
+            utsendingene svarer med status `planlagt`.
+          schema:
+            type: boolean
+        - name: sporingsId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Kjøringen er gjennomført
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Varslingsresultat"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
   /api/vandel/formaal:
     get:
       summary: Bekreftelsen på formål for en rolle
@@ -1981,6 +2037,77 @@ components:
         utenfor_maalgruppen, maalgruppe_ukjent, rullestoladkomst, rullestol_ikke_oppgitt,
         mangler_rullestoladkomst, teleslynge, teleslynge_mangler, teleslynge_ikke_oppgitt,
         utenfor_kommunen]
+    Varselkanal:
+      type: string
+      description: >
+        Kanalene et varsel kan gå på. Ingen papirkanal - se POST /fiks/varsler i
+        openapi/fiks-simulator.yaml, som tar avgjørelsen.
+      enum: [SMS, EPOST, INGEN]
+    Varseltype:
+      type: string
+      enum: [tilbud-finnes, paaminnelse, avlysning]
+    Varselgrunn:
+      type: string
+      description: Bare satt når kanalen er INGEN.
+      enum: [ukjent_i_kontaktregisteret, reservert, kan_ikke_varsles, ingen_kontaktopplysning]
+    Varslingsresultat:
+      type: object
+      description: >
+        Hva én kjøring gjorde. `vurdert` er hele utvalget, `alleredeSendt` de som
+        ledgeren allerede hadde en rad for, og `perKanal` teller de som faktisk ble
+        forsøkt - `INGEN` inkludert, fordi det er et utfall og ikke en feil.
+      properties:
+        torrkjoer:
+          type: boolean
+        kommunenummer:
+          type: string
+        vurdert:
+          type: integer
+        alleredeSendt:
+          type: integer
+        perKanal:
+          type: object
+          additionalProperties:
+            type: integer
+        feilet:
+          type: integer
+        utsendinger:
+          type: array
+          items:
+            $ref: "#/components/schemas/Utsending"
+        syntetisk:
+          type: boolean
+    Utsending:
+      type: object
+      description: >
+        Én rad i ledgeren. `status` skiller «ikke nådd» fra «feilet»: det første er
+        et svar fra kontaktregisteret, det andre at forsøket aldri kom fram.
+        `paabegynt` og ikke «reservert» - reservasjon betyr noe annet her.
+      properties:
+        noekkel:
+          type: string
+          description: "`varseltype:personId:tilbudId:dato`. Datoen er med, så en ukentlig påminnelse ikke kveles etter den første."
+        varseltype:
+          $ref: "#/components/schemas/Varseltype"
+        personId:
+          type: string
+        tilbudId:
+          type: string
+        dato:
+          type: string
+        status:
+          type: string
+          enum: [planlagt, paabegynt, sendt, ikke_naadd, feilet]
+        kanal:
+          $ref: "#/components/schemas/Varselkanal"
+        grunn:
+          $ref: "#/components/schemas/Varselgrunn"
+        varselId:
+          type: string
+        feil:
+          type: string
+        tidspunkt:
+          type: string
     MatrikkelGate:
       type: object
       description: >

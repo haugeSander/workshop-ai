@@ -178,6 +178,14 @@ export type Tilgang = "aapen" | "egne-data" | "bred";
 export const SCOPE_LES = "ks:innbyggerdialog:les";
 /** Writing to the audit log. fiks-simulator and ai-gateway hold this one. */
 export const SCOPE_REVISJON = "ks:innbyggerdialog:revisjon";
+/**
+ * Å kjøre en utgående varsling. Kommunens egen jobb, ikke en innbygger.
+ *
+ * Eget scope og ikke SCOPE_LES: å lese befolkningen og å sende den en SMS er to
+ * fullmakter, og et lesetoken som kunne utløse en utsending til alle over 62 er
+ * nettopp den sammenblandingen scopene finnes for å hindre.
+ */
+export const SCOPE_VARSLING = "ks:innbyggerdialog:varsling";
 
 function manglerToken(hva: string): HttpError {
   // 401, not 403: we do not know who this is. The distinction is the whole point -

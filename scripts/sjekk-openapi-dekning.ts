@@ -368,11 +368,24 @@ const tjenester: Tjeneste[] = [
     navn: "sandbox-backend",
     spesifikasjon: "openapi/sandbox-backend.yaml",
     ruter: backendRuter,
-    // Forsendelsesstatus står i to spesifikasjoner fordi to tjenester svarer med
-    // det: fiks-simulator utleder statusen, og sandbox-backend proxer den videre
-    // til søknadens eier. Kopien er greit så lenge den er portet - begge måles mot
-    // den ene kodeverkslisten i koden.
+    // Forsendelsesstatus og de tre varselkodeverkene står i to spesifikasjoner
+    // fordi to tjenester svarer med dem: fiks-simulator tar avgjørelsen, og
+    // sandbox-backend fører den videre - i forsendelsens tilfelle til søknadens
+    // eier, i varselets til ledgeren sin. Kopien er grei så lenge den er portet:
+    // begge måles mot den ene kodeverkslisten i koden.
     kodeverk: [
+      {
+        skjema: "Varselkanal",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELKANALER
+      },
+      {
+        skjema: "Varseltype",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELTYPER
+      },
+      {
+        skjema: "Varselgrunn",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELGRUNNER
+      },
       {
         skjema: "Forsendelsesstatus",
         verdier: async () =>
@@ -443,6 +456,18 @@ const tjenester: Tjeneste[] = [
       {
         skjema: "Oppgavestatus",
         verdier: async () => (await import("../apps/fiks-simulator/src/oppgave.ts")).OPPGAVESTATUSER
+      },
+      {
+        skjema: "Varselkanal",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELKANALER
+      },
+      {
+        skjema: "Varseltype",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELTYPER
+      },
+      {
+        skjema: "Varselgrunn",
+        verdier: async () => (await import("../apps/shared/varsel.ts")).VARSELGRUNNER
       },
       {
         skjema: "Forsendelsesstatus",

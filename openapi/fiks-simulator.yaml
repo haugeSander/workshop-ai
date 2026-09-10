@@ -526,6 +526,73 @@ paths:
           $ref: "#/components/responses/ManglerToken"
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
+  /fiks/varsler:
+    post:
+      summary: Send et varsel til en innbygger
+      security:
+        - maskinporten: [ks:fiks:varsel]
+      description: >
+        Den korte beskjeden - «husk turen på tirsdag», «kurset er avlyst» - ikke
+        dokumentet. Dette er ikke SvarUt, og kanalvalget er et annet: et varsel har
+        **ingen papirkanal**. En påminnelse i posten kommer etter turen, og et
+        varsel ingen kan lese i tide er verre enn ingen varsel, fordi det ser sendt
+        ut i loggen.
+
+        Følgen er at reservasjonen i kontaktregisteret stenger varselet helt. En
+        innbygger som er reservert får vedtaket sitt på papir og ingen påminnelser,
+        og de to tabellene skal derfor ikke stemme overens.
+
+        `kanal: INGEN` er 200 og ikke en feil: at en innbygger ikke kan nås er et
+        utfall kalleren skal telle, ikke noe som stopper en jobb midt i en liste.
+        Raden skrives uansett, slik at «vi prøvde og hun kunne ikke nås» er
+        forskjellig fra «vi prøvde aldri». `grunn` står bare når kanalen er `INGEN`.
+
+        Lengden på teksten måles mot kanalen og ikke mot kroppen: 160 tegn er
+        grensen for en SMS og ikke for en e-post, og hvilken det blir vet vi først
+        etter oppslaget i kontaktregisteret.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, digitalId, tekst]
+              properties:
+                type:
+                  $ref: "#/components/schemas/Varseltype"
+                digitalId:
+                  type: string
+                  description: Fødselsnummer. Slås opp i kontaktregisteret her.
+                tekst:
+                  type: string
+                eksternReferanse:
+                  type: string
+      responses:
+        "200":
+          description: Avgjørelsen er tatt og raden er skrevet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  varselId:
+                    type: string
+                  kanal:
+                    $ref: "#/components/schemas/Varselkanal"
+                  grunn:
+                    $ref: "#/components/schemas/Varselgrunn"
+                  syntetisk:
+                    type: boolean
+        "400":
+          description: Manglende felt, ukjent varseltype, eller en tekst for lang for SMS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
   /fiks/meldinger:
     post:
       summary: Legg en melding i innbyggerens innboks
@@ -1653,6 +1720,25 @@ components:
         foreldrebarnrelasjon.
       enum: [personnavn, foedselsdato, kjoenn, personstatus, doedsfall, sivilstand, bostedsadresse, kontaktadresse, forelderbarnrelasjon, familierelasjon, foreldreansvar, adressebeskyttelse]
 
+    Varselkanal:
+      type: string
+      description: >
+        Kanalene et varsel kan gå på. Ingen papirkanal, og det er ikke en
+        forglemmelse - se beskrivelsen på POST /fiks/varsler.
+      enum: [SMS, EPOST, INGEN]
+    Varseltype:
+      type: string
+      description: >
+        Hva varselet er. Typen avgjør ikke kanalen, men den står i loggen: «hvem
+        fikk et uanmodet varsel» og «hvem ble minnet på noe hun meldte seg på» er
+        to spørsmål med to hjemler.
+      enum: [tilbud-finnes, paaminnelse, avlysning]
+    Varselgrunn:
+      type: string
+      description: >
+        Hvorfor et varsel ikke kunne sendes. Bare satt når kanalen er INGEN. Fire
+        grunner og ikke én, fordi de fører til fire forskjellige handlinger.
+      enum: [ukjent_i_kontaktregisteret, reservert, kan_ikke_varsles, ingen_kontaktopplysning]
     Melding:
       type: object
       properties:

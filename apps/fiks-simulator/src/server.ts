@@ -10,6 +10,13 @@ import { maskFregPerson, maskHusstand, maskKrr, maskPerson } from "../../shared/
 // all three live in samtykke.ts so the compiler can hold them together.
 import { effektivStatus, validateSamtykkeovergang } from "../../shared/samtykke.ts";
 import { validateOppgaveovergang } from "./oppgave.ts";
+import type { Varseltype } from "../../shared/varsel.ts";
+import {
+  validateVarsel,
+  validateVarsellengde,
+  velgVarselkanal,
+  type Varselkropp
+} from "./varsel.ts";
 import {
   chooseKanal,
   deriveForsendelsesstatus,
@@ -66,6 +73,9 @@ const SCOPE_REGISTER = "ks:fiks:register";
 const SCOPE_SAMTYKKE = "ks:fiks:samtykke";
 const SCOPE_OPPGAVE = "ks:fiks:oppgave";
 const SCOPE_MELDING = "ks:fiks:melding";
+// Å sende et varsel er sin egen hjemmel. Et registertoken skal ikke kunne sende
+// SMS til en innbygger, og et varseltoken skal ikke kunne lese inntekten hennes.
+const SCOPE_VARSEL = "ks:fiks:varsel";
 // Folkeregisteret is its own path family with its own legal basis, so it is not
 // folded into ks:fiks:register: a register token must not open FREG.
 const SCOPE_FOLKEREGISTER = "ks:fiks:folkeregister";
@@ -487,6 +497,9 @@ const requireOppgaveHjemmel = (request: IncomingMessage) =>
 const requireMeldingHjemmel = (request: IncomingMessage) =>
   requireMaskinporten(request, { scope: SCOPE_MELDING, flate: "Meldingsflaten" });
 
+const requireVarselHjemmel = (request: IncomingMessage) =>
+  requireMaskinporten(request, { scope: SCOPE_VARSEL, flate: "Varselflaten" });
+
 const requireFolkeregisterHjemmel = (request: IncomingMessage) =>
   requireMaskinporten(request, { scope: SCOPE_FOLKEREGISTER, flate: "Folkeregisterflaten" });
 
@@ -639,6 +652,7 @@ function docsHtml(): string {
         <li><code>POST /fiks/oppgaver</code></li>
         <li><code>GET /fiks/oppgaver/{oppgaveId}</code></li>
         <li><code>PUT /fiks/oppgaver/{oppgaveId}/status</code></li>
+        <li><code>POST /fiks/varsler</code></li>
         <li><code>POST /fiks/meldinger</code></li>
         <li><code>GET /fiks/meldinger/{meldingId}</code></li>
       </ul>
@@ -1181,6 +1195,66 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
         grunnlag: { status: oppgave.status, id: oppgave.oppgaveId }
       });
       jsonResponse(response, 200, oppgave);
+      return;
+    }
+
+    /*
+     * Varselflaten. Ikke SvarUt: se varsel.ts for hvorfor et varsel ikke har en
+     * papirkanal, og hvorfor reservasjonen derfor stenger helt.
+     *
+     * `INGEN` er 200 og ikke 4xx. At en innbygger ikke kan nås er et utfall
+     * kalleren skal få vite og telle, ikke en feil som stopper en jobb midt i en
+     * liste over sju personer - og raden skrives, slik at «vi prøvde og hun kunne
+     * ikke nås» er forskjellig fra «vi prøvde aldri».
+     */
+    if (request.method === "POST" && url.pathname === "/fiks/varsler") {
+      const klient = await requireVarselHjemmel(request);
+      const body = await readRequestBody(request) as Varselkropp;
+      const feil = validateVarsel(body);
+      if (feil) {
+        throw new FiksError(feil.melding, 400, feil.kode);
+      }
+      const digitalId = body.digitalId!;
+      const tekst = body.tekst!;
+      const krrRad = (await tilstand.krr()).find((kandidat) => kandidat.fnr === digitalId);
+      const utfall = velgVarselkanal(krrRad);
+      const lengdefeil = validateVarsellengde(tekst, utfall.kanal);
+      if (lengdefeil) {
+        throw new FiksError(lengdefeil.melding, 400, lengdefeil.kode);
+      }
+      const varsel = {
+        varselId: newId("varsel"),
+        type: body.type as Varseltype,
+        digitalId,
+        tekst,
+        kanal: utfall.kanal,
+        ...(utfall.grunn ? { grunn: utfall.grunn } : {}),
+        ...(body.eksternReferanse ? { eksternReferanse: body.eksternReferanse } : {}),
+        opprettet: new Date().toISOString(),
+        syntetisk: true
+      };
+      await updateJson("varsler.json", [], (varsler) => varsler.push(varsel));
+      // Kanalen og typen, ikke teksten og ikke nummeret. «Hvem ble varslet om hva,
+      // og hvordan» er spørsmålet loggen svarer på; innholdet står på raden.
+      await addRevisjon({
+        handling: "VARSEL_SENDT",
+        ressurs: "varsel",
+        aktor: klient
+          ? { type: "system", id: klient.clientId, ...(klient.consumer ? { consumer: klient.consumer } : {}) }
+          : { type: "system", id: "fiks-simulator" },
+        grunnlag: {
+          id: varsel.varselId,
+          type: varsel.type,
+          kanal: varsel.kanal,
+          ...(utfall.grunn ? { grunn: utfall.grunn } : {})
+        }
+      });
+      jsonResponse(response, 200, {
+        varselId: varsel.varselId,
+        kanal: varsel.kanal,
+        ...(utfall.grunn ? { grunn: utfall.grunn } : {}),
+        syntetisk: true
+      });
       return;
     }
 

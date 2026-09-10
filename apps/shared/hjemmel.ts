@@ -55,6 +55,10 @@ export const LOVTITLER: Record<string, Lovtittel> = {
     id: "1967-02-10",
     tittel: "Lov om behandlingsmåten i forvaltningssaker"
   },
+  kommuneloven: {
+    id: "2018-06-22-83",
+    tittel: "Lov om kommuner og fylkeskommuner"
+  },
   pasientjournalloven: {
     id: "2014-06-20-42",
     tittel: "Lov om behandling av helseopplysninger ved ytelse av helsehjelp"

@@ -91,6 +91,14 @@ jobs:
       - name: Skåringen i seniorsirkelen
         run: pnpm test:seniorsirkel
 
+      # Kanalvalget for et varsel, som rene funksjoner. Det ser ut som
+      # test:forsendelse og er det ikke: chooseKanal faller til PRINT, denne til
+      # INGEN. Testen måler begge mot de samme testpersonene, nettopp fordi de to
+      # tabellene *ikke* skal stemme overens - en reservert innbygger får brev og
+      # ingen påminnelse, og den forskjellen skal være tellet og ikke oppdaget.
+      - name: Varselkanalen
+        run: pnpm test:varsel
+
       # Modulus 11 and Skatteetaten's +80 marker, as pure functions. The seed only
       # contains numbers we generate, so every *rejection* - an ordinary month, a
       # wrong second control digit, an individual number whose mod-11 rest is 10 -

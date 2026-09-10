@@ -8,7 +8,7 @@ Stack: Node.js med innebygd HTTP-server, null avhengigheter.
 
 ## Endepunkter
 
-27 ruter, alle dokumentert i `openapi/fiks-simulator.yaml`. **Alle seks flatene er bak
+28 ruter, alle dokumentert i `openapi/fiks-simulator.yaml`. **Alle seks flatene er bak
 Maskinporten**, med ett scope hver: `ks:fiks:register`, `ks:fiks:folkeregister`,
 `ks:fiks:svarut`, `ks:fiks:samtykke`, `ks:fiks:oppgave` og `ks:fiks:melding`. Scopet
 *er* hjemmelen, så et oppgave-token åpner ikke samtykkeflaten. Innbyggerens eget

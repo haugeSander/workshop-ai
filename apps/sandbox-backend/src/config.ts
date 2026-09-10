@@ -77,6 +77,16 @@ export const fiksDialogToken = {
 };
 
 /**
+ * Å sende et varsel. Brukt av varsling.ts.
+ *
+ * Egen konfigurasjon og ikke et fjerde scope på fiksDialogToken, av samme grunn
+ * som SvarUt har sin: å sende en SMS til en innbygger er ikke den samme
+ * fullmakten som å spørre henne om samtykke, og ett token som bar begge ville
+ * gjort de to umulige å skille i Fiks' egen logg.
+ */
+export const fiksVarselToken = { ...fiksTokenBase, scope: "ks:fiks:varsel" };
+
+/**
  * Sending the kvittering for a submitted søknad. Used by svarut.ts.
  *
  * Its own config rather than a third scope on fiksDialogToken: putting a letter

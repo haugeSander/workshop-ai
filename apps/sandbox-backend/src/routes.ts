@@ -10,6 +10,7 @@ import {
   manglerHandleevne,
   SCOPE_LES,
   SCOPE_REVISJON,
+  SCOPE_VARSLING,
   type Caller,
   type Tilgang
 } from "./autentisering.ts";
@@ -22,6 +23,7 @@ import {
   representantPider
 } from "../../shared/handleevne.ts";
 import { openapiFile } from "./config.ts";
+import { kjoerVarsling } from "./varsling.ts";
 import { routeOverview } from "../../shared/openapi.ts";
 import {
   buildProsessoektRespons,
@@ -670,6 +672,33 @@ const ruter: Rute[] = [
       }
       session.stegIndex -= 1;
     })
+  },
+  {
+    /*
+     * Kommunens varslingsjobb, som HTTP.
+     *
+     * `tilgang: "bred"` og et eget scope: dette er ikke en innbygger som gjør noe
+     * med sine egne data, det er kommunen som sender en melding til mange. En
+     * ID-porten-innlogging skal ikke kunne utløse den, og et lesetoken heller ikke.
+     *
+     * Samme kodevei som `scripts/varsle-seniorsirkel.ts` - `kjoerVarsling` er den
+     * ene implementasjonen, og dette er den andre inngangen til den.
+     * `?torrkjor=true` regner ut utvalget og sender ingenting.
+     */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/kjor",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response, tilstand, url }) => {
+      jsonResponse(response, 200, {
+        ...(await kjoerVarsling(tilstand, {
+          sporingsId: getSporingsId(url),
+          torrkjoer: url.searchParams.get("torrkjor") === "true"
+        })),
+        syntetisk: true
+      });
+    }
   },
   {
     metode: "POST",
