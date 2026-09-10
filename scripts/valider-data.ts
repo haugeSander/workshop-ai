@@ -43,6 +43,9 @@ import {
 } from "../apps/shared/politiattest.ts";
 import { LOVTITLER, bortkomneSitater, finnLovnavn, sitatspenn } from "../apps/shared/hjemmel.ts";
 import type { Politiattest } from "../apps/shared/politiattest.ts";
+import {
+  parseAktivitetskatalog, kategoriverdier, tilbudUtenTilgjengelighet
+} from "../apps/shared/senioraktivitet.ts";
 
 // Only seed data. Runtime datasets live in state/, are gitignored, and are
 // created by the services on first write.
@@ -70,6 +73,9 @@ const files = [
   "data/tjenestetilbud.json",
   "data/legeerklaeringer.json",
   "data/politiattester.json",
+  "data/senioraktiviteter.json",
+  "data/senioraktiviteter.seed.json",
+  "data/seniorsirkel-grupper.json",
   "data/forventet-utfall.json"
 ];
 
@@ -1294,6 +1300,89 @@ for (const ordning of satser.ordninger) {
         `Juster data/tjenestetilbud.json.`
       );
     }
+  }
+}
+
+// --- Aktivitetskatalogen for seniorsirkelen ---------------------------------
+// Kategoriene og de fysiske nivåene står i filen og ikke som et kodeverk i
+// apps/shared, fordi listene skal kunne endres uten en kodeendring. Da er dette
+// den eneste vakten mot en skrivefeil i en kategoriverdi, og den er derfor ikke
+// valgfri: en union-type over data fra en fil er dokumentasjon, ikke en sjekk.
+{
+  const katalogfil = process.env.SENIORAKTIVITET_DATA_FILE || "senioraktiviteter.json";
+  const katalog = parseAktivitetskatalog(await read(`data/${katalogfil}`));
+  const grupper = await read("data/seniorsirkel-grupper.json");
+
+  // Katalogen gjelder én kommune, og ordningen peker på en. Uten dette kunne
+  // seniorsirkel-tilbudet stå i Ringerike mens katalogen beskrev en annen kommune.
+  const kommunerMedTilbud = [...new Set(
+    tjenestetilbud
+      .filter((tilbud: any) => tilbud.tjeneste === "seniorsirkel" && tilbud.ledigePlasser > 0)
+      .map((tilbud: any) => tilbud.kommunenummer)
+  )];
+  if (!kommunerMedTilbud.includes(katalog.kommunenummer)) {
+    throw new Error(
+      `data/${katalogfil} gjelder kommune ${katalog.kommunenummer} (${katalog.kommunenavn}), ` +
+      `men seniorsirkel-tilbud med ledige plasser finnes bare i ` +
+      `${kommunerMedTilbud.join(", ")}. Da kvalifiserer innbyggeren og får ingen forslag.`
+    );
+  }
+
+  // Interessegruppene er vår presentasjon over kommunens kategorier. En kategori som
+  // ikke ligger i noen gruppe er et tilbud ingen interesse kan treffe, og en gruppe
+  // som peker på en kategori katalogen ikke har er en valgmulighet uten innhold.
+  // Begge veier, fordi begge feilene er stille.
+  const iKatalogen = new Set(kategoriverdier(katalog));
+  const iGruppene = new Set<string>(
+    grupper.grupper.flatMap((gruppe: any) => gruppe.kategorier as string[])
+  );
+  const uplassert = [...iKatalogen].filter((verdi) => !iGruppene.has(verdi));
+  if (uplassert.length > 0) {
+    throw new Error(
+      `Kategoriene ${uplassert.join(", ")} finnes i data/${katalogfil}, men ligger ikke i ` +
+      `noen gruppe i data/seniorsirkel-grupper.json. Da kan ingen interesse treffe dem.`
+    );
+  }
+  // Andre retningen maales mot den kanoniske katalogen og ikke mot den aktive filen:
+  // fixturen er et lite utvalg, saa den dekker med vilje ikke alle gruppene. Ville vi
+  // krevd det av den aktive filen, hadde SENIORAKTIVITET_DATA_FILE ikke kunnet peke
+  // paa noe annet enn hele katalogen.
+  const kanonisk = katalogfil === "senioraktiviteter.json"
+    ? katalog
+    : parseAktivitetskatalog(await read("data/senioraktiviteter.json"));
+  const iKanonisk = new Set(kategoriverdier(kanonisk));
+  const tomme = [...iGruppene].filter((verdi) => !iKanonisk.has(verdi));
+  if (tomme.length > 0) {
+    throw new Error(
+      `data/seniorsirkel-grupper.json peker på kategoriene ${tomme.join(", ")}, som ingen ` +
+      `aktivitet i data/senioraktiviteter.json har. Da er gruppen en valgmulighet uten innhold.`
+    );
+  }
+  for (const gruppe of grupper.grupper) {
+    if (!/^[a-z0-9-]+$/.test(String(gruppe.verdi))) {
+      throw new Error(
+        `Gruppeverdien «${gruppe.verdi}» i data/seniorsirkel-grupper.json må være små ` +
+        `bokstaver, tall og bindestrek. Verdien er en identifikator; teksten står i label.`
+      );
+    }
+    if (!String(gruppe.label || "").trim()) {
+      throw new Error(`Gruppen ${gruppe.verdi} mangler label.`);
+    }
+  }
+
+  // Skåringen filtrerer hardt på rullestol og mykt på teleslynge, og bærer «ikke
+  // oppgitt» videre som ukjent framfor å lese det som nei. Alle tre tilstandene må
+  // finnes, ellers er en gren død kode ingen test ser.
+  const alleTilbud = katalog.aktiviteter.flatMap((aktivitet) => aktivitet.tilbud);
+  const teller = (verdi: boolean | undefined) =>
+    alleTilbud.filter((tilbud) => tilbud.tilgjengelighet?.rullestol === verdi).length;
+  const ukjent = tilbudUtenTilgjengelighet(katalog);
+  if (teller(true) === 0 || teller(false) === 0 || ukjent === 0) {
+    throw new Error(
+      `data/${katalogfil}: ${teller(true)} tilbud har rullestoladkomst, ${teller(false)} har ` +
+      `det ikke, og ${ukjent} mangler opplysningen. Alle tre må finnes, ellers er en gren i ` +
+      `skåringen død - «ikke oppgitt» er en egen tilstand og skal ikke bli lest som nei.`
+    );
   }
 }
 
