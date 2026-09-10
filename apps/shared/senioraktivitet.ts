@@ -19,6 +19,7 @@ const UKEDAGER = [
 ];
 
 const KLOKKE = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+const ISODATO = /^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
 const KOMMUNENUMMER = /^[0-9]{4}$/;
 const IDENTIFIKATOR = /^[a-z0-9-]+$/;
 
@@ -37,6 +38,16 @@ export type Tilgjengelighet = {
 };
 
 export type Tidspunkt = {
+  /**
+   * Én konkret dato, `YYYY-MM-DD`, naar kommunen har satt opp et enkelt
+   * arrangement framfor bare en gjentakelse.
+   *
+   * Katalogen hadde ingen datoer da denne modulen ble skrevet, og feltet kom til
+   * senere. Det er grunnen til at det staar her og ikke bare i `nesteGang`: et
+   * felt parseren ikke kjenner blir stille borte, og da svarte `nesteGang` «i dag»
+   * for aatte av ti tilbud uten at noe ble roedt.
+   */
+  dato?: string;
   /** Tomt naar tilbudet ikke er bundet til bestemte ukedager. */
   ukedager: string[];
   fraKlokkeslett: string;
@@ -134,6 +145,11 @@ function lesTidspunkt(raa: unknown, hvem: string, i: number): Tidspunkt {
     return String(d);
   });
 
+  if (t.dato !== undefined && t.dato !== null) {
+    krev(ISODATO.test(String(t.dato)),
+      `${hvor}: \`dato\` er «${String(t.dato)}». Forventet YYYY-MM-DD.`);
+  }
+
   krev(KLOKKE.test(String(t.fraKlokkeslett)),
     `${hvor}: \`fraKlokkeslett\` er «${String(t.fraKlokkeslett)}». Forventet TT:MM.`);
   if (t.tilKlokkeslett !== undefined && t.tilKlokkeslett !== null) {
@@ -157,6 +173,7 @@ function lesTidspunkt(raa: unknown, hvem: string, i: number): Tidspunkt {
   }
 
   return {
+    ...(t.dato === undefined || t.dato === null ? {} : { dato: String(t.dato) }),
     ukedager,
     fraKlokkeslett: String(t.fraKlokkeslett),
     ...(t.tilKlokkeslett === undefined || t.tilKlokkeslett === null
@@ -407,12 +424,23 @@ function iSesong(isodato: string, sesong?: { fraMaaned: number; tilMaaned: numbe
  * bestemte dager», og det er et dagsenter som er åpent - `aktivitetssenteret-gleden`
  * er nettopp det. Lest som «ingen dager» ville tilbudet aldri hatt en neste gang.
  *
+ * **En oppgitt `dato` er forekomsten, og den vinner.** Kommunen har da satt opp et
+ * bestemt arrangement, og en utregnet «neste tirsdag» ved siden av ville vært vår
+ * gjetning mot deres opplysning. Ligger datoen bak oss, faller vi tilbake på
+ * gjentakelsen hvis det finnes en - et arrangement som var i går har ingen neste
+ * gang, men en turgruppe som møtes hver tirsdag har det.
+ *
  * Sesongen stopper ikke søket, den flytter det: i november svarer turgruppa med
  * første tirsdag i april, framfor med `null`. Det er svaret påmeldingen trenger for
  * å kunne si «du er påmeldt, neste gang er i april», og det gjør at varslingsjobben
  * slipper et sesongtilfelle - en dato som ligger måneder fram er bare ikke i morgen.
  */
 function foersteTreff(tidspunkt: Tidspunkt, fraDato: string): string | null {
+  if (tidspunkt.dato) {
+    if (tidspunkt.dato >= fraDato) return tidspunkt.dato;
+    // Datoen er passert. Uten en gjentakelse ved siden av er arrangementet over.
+    if (tidspunkt.ukedager.length === 0) return null;
+  }
   const dager = tidspunkt.ukedager.length > 0
     ? new Set(tidspunkt.ukedager.map((dag) => UKEDAGSNUMMER[dag]))
     : null;

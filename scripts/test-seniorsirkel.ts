@@ -528,6 +528,71 @@ const skudd = medTidspunkter([{ ukedager: ["tirsdag"], fraKlokkeslett: "10:00" }
 check("29. februar i et skuddår", nesteGang(skudd, "2028-02-27")?.dato === "2028-02-29",
   JSON.stringify(nesteGang(skudd, "2028-02-27")));
 
+// --- 7. En oppgitt dato er forekomsten --------------------------------------
+
+/*
+ * Katalogen fikk `dato` etter at nesteGang ble skrevet, og feltet var ikke i
+ * `Tidspunkt`. Parseren kastet det derfor bort i stillhet, og siden tom
+ * `ukedager` betyr «hver dag», svarte nesteGang «i dag» for åtte av ti tilbud.
+ * `pnpm test` var grønn hele tiden.
+ *
+ * Det er den feilen disse sjekkene finnes for, og den siste av dem er den som
+ * fanger neste felt av samme slag.
+ */
+const datert = medTidspunkter([{ ukedager: [], fraKlokkeslett: "10:30", dato: "2026-09-21" }]);
+check("en oppgitt dato er svaret, ikke i dag",
+  nesteGang(datert, "2026-09-10")?.dato === "2026-09-21",
+  JSON.stringify(nesteGang(datert, "2026-09-10")));
+check("selve dagen teller med også for en dato",
+  nesteGang(datert, "2026-09-21")?.dato === "2026-09-21");
+check("et arrangement som var i går har ingen neste gang",
+  nesteGang(datert, "2026-09-22") === null);
+
+// Datoen vinner over gjentakelsen: kommunen har satt opp en bestemt dag, og en
+// utregnet «neste tirsdag» ved siden av ville vært vår gjetning mot deres opplysning.
+const baade = medTidspunkter([
+  { ukedager: ["fredag"], fraKlokkeslett: "10:00", dato: "2026-09-15" }
+]);
+check("datoen vinner over ukedagen",
+  nesteGang(baade, "2026-09-10")?.dato === "2026-09-15",
+  JSON.stringify(nesteGang(baade, "2026-09-10")));
+// ...men når den er passert, er gjentakelsen fortsatt der.
+check("passert dato faller tilbake på gjentakelsen",
+  nesteGang(baade, "2026-09-16")?.dato === "2026-09-18",
+  JSON.stringify(nesteGang(baade, "2026-09-16")));
+
+kaster("en dato som ikke er YYYY-MM-DD avvises",
+  () => parseAktivitetskatalog({
+    ...katalog,
+    aktiviteter: [{
+      ...TUR,
+      tilbud: [{ ...TUR.tilbud[0]!, tidspunkter: [{ fraKlokkeslett: "09:30", dato: "15.09.2026" }] }]
+    }]
+  }),
+  "Forventet YYYY-MM-DD");
+
+/*
+ * Vakten mot neste felt som forsvinner.
+ *
+ * `parseAktivitetskatalog` normaliserer, og et felt den ikke kjenner blir borte
+ * uten et ord. For `tidspunkter` er det farlig på en egen måte: det er dette
+ * nesteGang regner på, og et tapt felt gir et svar som ser riktig ut. Derfor
+ * måles feltnavnene i den *virkelige* katalogen mot dem som overlever.
+ */
+{
+  const raa = JSON.parse(await readFile("data/senioraktiviteter.json", "utf8"));
+  const parset = parseAktivitetskatalog(raa);
+  const felterI = (katalogen: any) => new Set<string>(
+    katalogen.aktiviteter
+      .flatMap((aktivitet: any) => aktivitet.tilbud)
+      .flatMap((tilbud: any) => tilbud.tidspunkter ?? [])
+      .flatMap((tidspunkt: any) => Object.keys(tidspunkt)));
+  const tapt = [...felterI(raa)].filter((felt) => !felterI(parset).has(felt)).sort();
+  check("hvert tidspunktfelt katalogen bruker overlever parsingen",
+    tapt.length === 0,
+    `borte: ${tapt.join(", ")}`);
+}
+
 // --- report ----------------------------------------------------------------
 if (feil.length > 0) {
   console.error(`test-seniorsirkel: ${feil.length} av ${bestatt + feil.length} sjekker feilet.`);
