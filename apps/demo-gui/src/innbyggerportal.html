@@ -19,11 +19,30 @@
         .portal-brand img { width: var(--ds-size-12); height: var(--ds-size-14); object-fit: contain; }
         .portal-main { display: grid; gap: var(--ds-size-10); padding-block: var(--ds-size-10) var(--ds-size-18); }
         .portal-intro { max-width: 48rem; display: grid; gap: var(--ds-size-3); }
-        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--ds-size-4); }
-        .portal-card { height: 100%; display: flex; flex-direction: column; }
-        .portal-card .ds-card__block:last-child { margin-top: auto; }
-        .portal-offer { display: grid; gap: var(--ds-size-3); border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
-        .portal-details { display: grid; gap: var(--ds-size-1); margin: 0; padding-left: var(--ds-size-5); }
+        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--ds-size-5); }
+        /*
+          Hele kortet er en lenke til detaljsiden (se .ds-card:where(a,...) i
+          designsystemet for hover/fokus/understrek). Et kort med en knapp inni
+          ville vært en lenke med en knapp inni - ugyldig HTML og forvirrende for
+          skjermleser. Derfor: ingen knapp på kortet, all handling skjer på
+          detaljsiden bak lenken.
+        */
+        .portal-card { height: 100%; display: flex; flex-direction: column; gap: 0; }
+        .portal-card__topp { display: grid; gap: var(--ds-size-3); }
+        .portal-card__kategorirad { display: flex; align-items: center; gap: var(--ds-size-2); }
+        .portal-card__kategoriikon { font-size: var(--ds-font-size-4); line-height: 1; }
+        .portal-card__kategori { margin: 0; color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-1); text-transform: uppercase; letter-spacing: 0.06em; }
+        .portal-card h3 { margin: 0; }
+        .portal-card__teaser { margin: 0; color: var(--ds-color-text-default); }
+
+        /*
+          Definisjonsliste og ikke punktliste: «Tid» og «tirsdag 10:00» er et
+          navn og en verdi, og et skjermleserprogram leser dem som et par når
+          markupen sier at de er det.
+        */
+        .portal-details { display: grid; grid-template-columns: auto 1fr; gap: var(--ds-size-2) var(--ds-size-3); margin: 0; }
+        .portal-details dt { color: var(--ds-color-text-subtle); }
+        .portal-details dd { margin: 0; }
         .portal-meta { color: var(--ds-color-text-subtle); margin-bottom: 0; }
         .portal-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--ds-size-4); margin: 0; }
         .portal-summary div { padding-block: var(--ds-size-2); border-bottom: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
@@ -36,6 +55,27 @@
         .portal-section__heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: var(--ds-size-3); }
         .portal-footer { border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-tinted); }
         .portal-footer__inner { padding-block: var(--ds-size-6); }
+        .portal-tilrettelegging { display: grid; gap: var(--ds-size-4); }
+        .portal-radiorekke { display: flex; flex-wrap: wrap; gap: var(--ds-size-4); }
+        .portal-radio { display: flex; align-items: center; gap: var(--ds-size-2); }
+        /*
+          Grunnene til at kortet står der - kortets hovedelement. Rader og
+          ikke chips: en grunn er en påstand («i din aldersgruppe»), og en
+          påstand leses bedre på egen linje enn i en klynge av merker.
+        */
+        .portal-grunner { display: grid; gap: var(--ds-size-1); margin: 0; padding: 0; list-style: none; }
+        .portal-grunn { display: grid; grid-template-columns: var(--ds-size-5) 1fr; align-items: baseline; gap: var(--ds-size-2); margin: 0; }
+        .portal-grunn__ikon { font-weight: var(--ds-font-weight-semibold); color: var(--ds-color-text-subtle); }
+        .portal-grunn[data-color="success"] .portal-grunn__ikon { color: var(--ds-color-success-icon-default); }
+        .portal-grunn[data-color="warning"] .portal-grunn__ikon { color: var(--ds-color-warning-icon-default); }
+        .portal-grunn[data-color="danger"] .portal-grunn__ikon { color: var(--ds-color-danger-icon-default); }
+        .portal-grunn__tekst { color: var(--ds-color-text-default); font-size: var(--ds-font-size-2); }
+        .portal-card--utelukket { border-color: var(--ds-color-warning-border-default); }
+
+        /* Detaljsiden: én smal kolonne, så en lang beskrivelse ikke blir en urimelig lang linje å lese. */
+        .portal-detalj { display: grid; gap: var(--ds-size-6); max-width: 42rem; }
+        .portal-detalj-header { display: grid; gap: var(--ds-size-2); }
+        .portal-detalj-handling { display: grid; gap: var(--ds-size-4); padding-top: var(--ds-size-4); border-top: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
         [hidden] { display: none !important; }
       }
     </style>
@@ -70,15 +110,56 @@
         </div>
 
         <div role="tabpanel" id="aktiviteter-panel" aria-labelledby="aktiviteter-fane">
+        <!--
+          En egen seksjon, ikke et felt i preferanseseksjonen under. Samtykket
+          her handler om å bli kontaktet, ikke om å bruke portalen - så det har
+          sin egen lagreknapp og blokkerer ikke interessene, som virker likt
+          uansett svar.
+        -->
+        <section class="portal-section" id="samtykkeseksjon" hidden aria-labelledby="samtykke-tittel">
+          <div>
+            <h2 class="ds-heading" data-size="lg" id="samtykke-tittel">Vil du at vi tar kontakt?</h2>
+            <p class="ds-paragraph">
+              Av og til dukker det opp noe vi tror kan passe for deg. Sier du ja, kan vi
+              sende deg en SMS om det. Sier du nei, bruker vi ikke opplysningene dine til å
+              ta kontakt - portalen virker like fullt.
+            </p>
+          </div>
+          <fieldset class="ds-fieldset">
+            <legend class="ds-fieldset__legend">Kan vi kontakte deg om tilbud som passer deg?</legend>
+            <div class="portal-radiorekke" id="samtykkevalg"></div>
+          </fieldset>
+          <div class="ds-alert" data-color="danger" id="samtykkefeil" aria-live="polite" hidden></div>
+          <div class="portal-actions">
+            <button class="ds-button" type="button" id="lagreSamtykke">Lagre svaret</button>
+          </div>
+          <p class="ds-paragraph" id="samtykkestatusLinje" aria-live="polite" hidden></p>
+          <button class="ds-button" data-variant="tertiary" data-size="sm" type="button" id="trekkSamtykke" hidden>
+            Trekk tilbake samtykket
+          </button>
+        </section>
+
         <section class="portal-section" id="preferanseseksjon" hidden aria-labelledby="preferanse-tittel">
           <div>
             <h2 class="ds-heading" data-size="lg" id="preferanse-tittel">Hva er du interessert i?</h2>
-            <p class="ds-paragraph">Velg én eller flere kategorier. Vi bruker valgene til å finne aktiviteter som kan passe for deg.</p>
+            <p class="ds-paragraph">Velg én eller flere ting du har lyst til å gjøre. Vi bruker svarene til å finne aktiviteter som kan passe for deg.</p>
           </div>
           <fieldset class="ds-fieldset">
-            <legend class="ds-fieldset__legend">Kategorier</legend>
+            <legend class="ds-fieldset__legend">Interesser</legend>
             <div class="portal-preferences" id="preferansevalg"></div>
           </fieldset>
+
+          <!--
+            Tre svar og ikke to. «Vet ikke» er ikke det samme som nei, og skåringen
+            behandler det som ukjent: et hardt filter som leste ubesvart som nei
+            ville skjult tilbud hun godt kan møte på. Se docs/seniorsirkel.md.
+          -->
+          <fieldset class="ds-fieldset">
+            <legend class="ds-fieldset__legend">Trenger du tilrettelegging?</legend>
+            <p class="ds-paragraph" data-size="sm">Svarene brukes bare til å finne tilbud du kommer inn på. Du kan hoppe over dem.</p>
+            <div class="portal-tilrettelegging" id="tilretteleggingsvalg"></div>
+          </fieldset>
+
           <div class="ds-alert" data-color="danger" id="preferansefeil" aria-live="polite" hidden></div>
           <div class="portal-actions">
             <button class="ds-button" type="button" id="lagrePreferanser">Vis anbefalinger</button>
@@ -89,10 +170,10 @@
         <section class="portal-section" id="tilbudsseksjon" hidden aria-labelledby="tilbud-tittel">
           <div class="portal-section__heading">
             <div>
-              <h2 class="ds-heading" data-size="md" id="tilbud-tittel">Anbefalte aktiviteter</h2>
-              <p class="ds-paragraph">Anbefalingene bygger på interessene dine, alderen din og kommunen du bor i.</p>
+              <h2 class="ds-heading" data-size="md" id="tilbud-tittel">Anbefalt for deg</h2>
+              <p class="ds-paragraph">Rekkefølgen er regnet ut av en regel, ikke av kunstig intelligens. Hvert kort viser de konkrete grunnene til at det står der. Trykk på et kort for å se mer og melde deg på.</p>
             </div>
-            <button class="ds-button" data-variant="secondary" type="button" id="endrePreferanser">Endre interesser</button>
+            <button class="ds-button" data-variant="secondary" type="button" id="endrePreferanser">Endre svarene dine</button>
           </div>
           <div class="portal-grid" id="tilbud"></div>
         </section>
@@ -105,33 +186,50 @@
           <div class="portal-grid" id="andretilbud"></div>
         </section>
 
-        <section class="portal-section" id="paameldingsseksjon" hidden aria-labelledby="paamelding-tittel">
+        <!--
+          De utelukkede blir stående. En innbygger som har oppgitt at hun bruker
+          rullestol har krav på å få vite at det finnes turgrupper hun ikke kommer
+          inn på, framfor at de forsvinner uten spor - med tid, sted og telefon,
+          så hun kan ringe og spørre selv.
+        -->
+        <section class="portal-section" id="utelukketseksjon" hidden aria-labelledby="utelukket-tittel">
           <div>
-            <p class="portal-category">Påmelding</p>
-            <h2 class="ds-heading" data-size="lg" id="paamelding-tittel">Kontroller og bekreft</h2>
-            <p class="ds-paragraph">Dette er opplysningene som brukes når du melder deg på.</p>
+            <h2 class="ds-heading" data-size="md" id="utelukket-tittel">Dette passer ikke med det du har oppgitt</h2>
+            <p class="ds-paragraph">Vi skjuler dem ikke. Trykk på kortet for å se kontaktinformasjon hvis du vil høre hva som er mulig.</p>
           </div>
-          <dl class="portal-summary" id="paameldingsdata"></dl>
-          <div class="ds-alert">
-            <p class="ds-paragraph" id="paameldingsforklaring"></p>
-          </div>
-          <div class="portal-actions">
-            <button class="ds-button" type="button" id="bekreftPaamelding">Bekreft påmelding</button>
-            <button class="ds-button" data-variant="secondary" type="button" id="avbrytPaamelding">Avbryt</button>
-          </div>
+          <div class="portal-grid" id="utelukket"></div>
         </section>
-
-        <div id="kvittering" aria-live="polite"></div>
         </div>
 
         <section class="portal-section" role="tabpanel" id="paameldinger-panel" aria-labelledby="paameldinger-fane" hidden>
           <div>
             <h2 class="ds-heading" data-size="md">Mine påmeldinger</h2>
-            <p class="ds-paragraph">Aktiviteter du allerede er påmeldt.</p>
+            <p class="ds-paragraph">Aktiviteter du allerede er påmeldt. Trykk på et kort for å se detaljer eller fjerne påmeldingen.</p>
           </div>
           <div class="portal-grid" id="paameldinger"></div>
           <p class="ds-paragraph" id="ingenPaameldinger" hidden>Du er ikke påmeldt noen aktiviteter ennå.</p>
-          <div id="paameldingsstatus" aria-live="polite"></div>
+        </section>
+
+        <!--
+          Én detaljside for alle tre korttypene (anbefalt/andre, utelukket, mine
+          påmeldinger). Det som før var kortets nedtrekk og en egen
+          «Kontroller og bekreft»-side, er samme sted nå: se det, meld deg på,
+          eller fjern påmeldingen, uten å bytte side.
+        -->
+        <section class="portal-section" id="aktivitetsdetaljseksjon" hidden aria-labelledby="detaljTittel">
+          <div>
+            <a class="ds-button" data-variant="tertiary" id="tilbakeLenke" href="?">← Tilbake til oversikten</a>
+          </div>
+          <div class="portal-detalj">
+            <div class="portal-detalj-header">
+              <p class="portal-card__kategori" id="detaljKategori" hidden></p>
+              <h1 class="ds-heading" data-size="xl" id="detaljTittel"></h1>
+            </div>
+            <div id="detaljGrunner"></div>
+            <p class="ds-paragraph" data-size="lg" id="detaljBeskrivelse" hidden></p>
+            <dl class="portal-details" id="detaljListe" hidden></dl>
+            <div class="portal-detalj-handling" id="detaljHandling" aria-live="polite"></div>
+          </div>
         </section>
       </main>
 

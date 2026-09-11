@@ -24,6 +24,7 @@ import { fiksBaseUrl, fiksVarselToken, senioraktivitetFil } from "./config.ts";
 import { addRevisjon } from "./revisjon.ts";
 import { tryUpstream } from "./upstream.ts";
 import { evaluateVilkaar } from "./vilkaar.ts";
+import { SENIORSIRKEL_KONTAKT_FORMAAL } from "./seniorsirkelsamtykke.ts";
 import type { Ordning, State } from "./types.ts";
 
 /**
@@ -191,6 +192,23 @@ export const PAAMELDINGSHJEMMEL = {
   formaal: "Bekrefte og minne om et tilbud innbyggeren har meldt seg på"
 } as const;
 
+/**
+ * Hjemmelen for et varsel hun har sagt ja til.
+ *
+ * Et tredje grunnlag, og ikke en gren av de to over. Før hun samtykket var
+ * hjemmelen VARSELHJEMMEL - hun var aldri spurt. Nå er hun spurt, og har svart
+ * ja, så det riktige grunnlaget er nettopp det samtykket, ikke lenger kommunens
+ * informasjonsplikt. `formaal` er ikke en visningstekst her: den er ordrett
+ * formålet på selve samtykkeraden (se seniorsirkelsamtykke.ts), slik at
+ * revisjonsloggen viser det samtykket faktisk dekket - ikke en kommunens egen
+ * omtale av det.
+ */
+export const SENIORSIRKEL_KONTAKT_HJEMMEL = {
+  behandlingsgrunnlag: "personvernforordningen artikkel 6 nr. 1 bokstav a",
+  suppleringsgrunnlag: "innbyggerens samtykke til personlig kontakt om seniortilbud",
+  formaal: SENIORSIRKEL_KONTAKT_FORMAAL
+} as const;
+
 /** Ukedagen en ISO-dato faller på, på norsk. Til teksten, ikke til regning. */
 const UKEDAGSNAVN = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
 
@@ -236,7 +254,10 @@ export function byggBekreftelsestekst(navn: string, neste: Neste | null): string
  */
 export async function sendEnkeltvarsel(
   kandidat: Varselkandidat,
-  valg: { sporingsId: string; hjemmel: typeof VARSELHJEMMEL | typeof PAAMELDINGSHJEMMEL }
+  valg: {
+    sporingsId: string;
+    hjemmel: typeof VARSELHJEMMEL | typeof PAAMELDINGSHJEMMEL | typeof SENIORSIRKEL_KONTAKT_HJEMMEL;
+  }
 ): Promise<Utsending | null> {
   const noekkel = utsendingsnoekkel(kandidat);
   const klemt: boolean = await updateJson(
@@ -410,6 +431,28 @@ async function sendVarsel(kandidat: Varselkandidat, sporingsId: string) {
         tekst: kandidat.tekst,
         eksternReferanse: `${utsendingsnoekkel(kandidat)}:${sporingsId}`
       })
+    })
+  );
+}
+
+/**
+ * Hvilken kanal et varsel *ville* gått på for denne fødselsnummer, uten å
+ * sende noe.
+ *
+ * `GET /fiks/varselkanal` er den samme avgjørelsen `sendVarsel` ellers gjør
+ * som en bivirkning av å sende - denne spør uten den bivirkningen, så en fane
+ * kan avgjøre om noen hører til SMS- eller brevsporet uten å legge en falsk
+ * rad i utboksen hver gang noen bytter person i en nedtrekksliste.
+ */
+export async function hentVarselkanal(fnr: string) {
+  return tryUpstream<{ kanal: Varselkanal; grunn?: Varselgrunn }>(
+    { service: "Fiks-simulatoren", action: "Å slå opp varselkanalen" },
+    async () => fetch(`${fiksBaseUrl}/fiks/varselkanal?fnr=${encodeURIComponent(fnr)}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await maskinportenHeader(fiksVarselToken))
+      }
     })
   );
 }

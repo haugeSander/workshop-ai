@@ -10,6 +10,15 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { cors, readRequestBody, sammeOpphav, svarhjelpere } from "../../shared/http.ts";
 import { feilkode, feilmelding } from "../../shared/errors.ts";
 import { buildFartsdempendeOppsummering } from "./fartsdempende-oppsummering.ts";
+import {
+  byggBegrunnelsesprompt,
+  parseTilbud,
+  standardbegrunnelse,
+  velgBegrunnelse
+} from "./tilbudsbegrunnelse.ts";
+import type { Begrunnelse, Tilbudsinngang } from "./tilbudsbegrunnelse.ts";
+import { byggPersonligSmsPrompt, parseSmsInngang, velgPersonligSms } from "./personligsms.ts";
+import { byggPersonligBrevPrompt, parseBrevInngang, velgPersonligBrev } from "./personligbrev.ts";
 import type { Sporsmaalskontekst } from "./sporsmaalsperrer.ts";
 import {
   buildGrunnlag,
@@ -2039,6 +2048,174 @@ async function buildAiResponse(type: string, body: AiKropp) {
 }
 
 /*
+ * Én setning per seniortilbud om hvorfor det står i innbyggerens liste.
+ *
+ * Egen inngang og ikke `buildAiResponse`, av samme grunn som /ai/sporsmaal:
+ * den veien har ingen validering etter modellen, og dette er tekst en innbygger
+ * leser. Sperrene ligger i tilbudsbegrunnelse.ts, og hvert svar som ikke består
+ * dem byttes ut med den deterministiske setningen framfor å bli stående.
+ *
+ * Ett kall per tilbud, i parallell, framfor ett kall som svarer med JSON for
+ * alle. Da feiler de hver for seg - en setning som ikke består sperrene koster
+ * ikke de fem andre - og hvert kall får sin egen linje i KI-sporet, som er der
+ * man ser hva modellen faktisk fikk.
+ *
+ * Kort tidsavbrudd: en innbygger står og venter på en side, og en setning som
+ * kommer etter tre minutter kommer ikke. Da er regelens setning svaret.
+ */
+const BEGRUNNELSE_TIMEOUT_MS = 20000;
+
+async function buildTilbudsbegrunnelser(body: AiKropp) {
+  const tilbud = parseTilbud((body?.kontekst as Record<string, unknown> | undefined)?.tilbud);
+  const sprak = body?.sprak || "nb";
+
+  const utenModell = (aarsak: string) => ({
+    begrunnelser: tilbud.map((rad): Begrunnelse => ({
+      tilbudId: rad.tilbudId,
+      tekst: standardbegrunnelse(rad),
+      kilde: "regel" as const
+    })),
+    modell: "mock-ai-gateway",
+    syntetisk: true,
+    sprak,
+    ...(aarsak ? { advarsel: aarsak } : {})
+  });
+
+  if (tilbud.length === 0) {
+    return { begrunnelser: [], modell: "mock-ai-gateway", syntetisk: true, sprak };
+  }
+  if (aiProvider !== "ollama" && aiProvider !== "openrouter"
+    && aiProvider !== "telenor-ai-factory" && aiProvider !== "bedrock") {
+    return utenModell("");
+  }
+
+  const modeller = new Set<string>();
+  const avvist: string[] = [];
+  const feilet: string[] = [];
+  const begrunnelser = await Promise.all(tilbud.map(async (rad: Tilbudsinngang) => {
+    try {
+      // Temperatur 0.2 og ikke 0: dette er den ene oppgaven i denne tjenesten der
+      // modellen faktisk formulerer noe, framfor å gjengi et tall backend har
+      // regnet ut. Sperrene, ikke temperaturen, er det som holder den i tømme.
+      const llm = await callModel(byggBegrunnelsesprompt(rad, sprak), {
+        task: "begrunn-tilbud",
+        temperature: 0.2,
+        timeoutMs: BEGRUNNELSE_TIMEOUT_MS,
+        sporingsId: body?.sporingsId
+      });
+      modeller.add(llm.modell);
+      const valgt = velgBegrunnelse(rad, llm.tekst);
+      if (valgt.avvist) avvist.push(`${rad.tilbudId}: ${valgt.avvist}`);
+      return valgt;
+    } catch (error) {
+      feilet.push(`${rad.tilbudId}: ${feilmelding(error)}`);
+      return {
+        tilbudId: rad.tilbudId,
+        tekst: standardbegrunnelse(rad),
+        kilde: "regel" as const
+      };
+    }
+  }));
+
+  const merknader = [
+    ...(feilet.length > 0 ? [`Provider ${aiProvider} feilet for ${feilet.join("; ")}`] : []),
+    ...(avvist.length > 0 ? [`Svar forkastet av sperrene for ${avvist.join("; ")}`] : [])
+  ];
+  return {
+    begrunnelser,
+    modell: modeller.size === 1 ? [...modeller][0]! : `${aiProvider} (${modeller.size} modeller)`,
+    syntetisk: true,
+    sprak,
+    ...(merknader.length > 0 ? { advarsel: merknader.join(". ") } : {})
+  };
+}
+
+/**
+ * Den personlige åpningssetningen i en seniorsirkel-SMS. Samme oppbygning som
+ * buildTilbudsbegrunnelser: ett kall, kort tidsavbrudd, regelens tekst når
+ * modellen ikke er i bruk, feiler eller ikke består sperrene i personligsms.ts.
+ */
+const PERSONLIG_SMS_TIMEOUT_MS = 15000;
+
+async function buildPersonligSms(body: AiKropp) {
+  const sprak = body?.sprak || "nb";
+  const inn = parseSmsInngang(body?.kontekst);
+  if (!inn) {
+    return { tekst: "", kilde: "regel", syntetisk: true, sprak, advarsel: "mangler eller ugyldig inngang" };
+  }
+  if (aiProvider !== "ollama" && aiProvider !== "openrouter"
+    && aiProvider !== "telenor-ai-factory" && aiProvider !== "bedrock") {
+    return { ...velgPersonligSms(inn, ""), modell: "mock-ai-gateway", syntetisk: true, sprak };
+  }
+  try {
+    const llm = await callModel(byggPersonligSmsPrompt(inn, sprak), {
+      task: "personlig-sms",
+      temperature: 0.3,
+      timeoutMs: PERSONLIG_SMS_TIMEOUT_MS,
+      sporingsId: body?.sporingsId
+    });
+    const valgt = velgPersonligSms(inn, llm.tekst);
+    return {
+      ...valgt,
+      modell: llm.modell,
+      syntetisk: true,
+      sprak,
+      ...(valgt.avvist ? { advarsel: `Svar forkastet av sperrene: ${valgt.avvist}` } : {})
+    };
+  } catch (error) {
+    return {
+      ...velgPersonligSms(inn, ""),
+      modell: "mock-ai-gateway",
+      syntetisk: true,
+      sprak,
+      advarsel: `Provider ${aiProvider} feilet: ${feilmelding(error)}`
+    };
+  }
+}
+
+/**
+ * De personlige avsnittene i et seniorsirkel-brev. Samme oppbygning som
+ * buildPersonligSms, bare at svaret er avsnitt i stedet for én setning med hale.
+ */
+const PERSONLIG_BREV_TIMEOUT_MS = 20000;
+
+async function buildPersonligBrev(body: AiKropp) {
+  const sprak = body?.sprak || "nb";
+  const inn = parseBrevInngang(body?.kontekst);
+  if (!inn) {
+    return { avsnitt: [], kilde: "regel", syntetisk: true, sprak, advarsel: "mangler eller ugyldig inngang" };
+  }
+  if (aiProvider !== "ollama" && aiProvider !== "openrouter"
+    && aiProvider !== "telenor-ai-factory" && aiProvider !== "bedrock") {
+    return { ...velgPersonligBrev(inn, ""), modell: "mock-ai-gateway", syntetisk: true, sprak };
+  }
+  try {
+    const llm = await callModel(byggPersonligBrevPrompt(inn, sprak), {
+      task: "personlig-brev",
+      temperature: 0.3,
+      timeoutMs: PERSONLIG_BREV_TIMEOUT_MS,
+      sporingsId: body?.sporingsId
+    });
+    const valgt = velgPersonligBrev(inn, llm.tekst);
+    return {
+      ...valgt,
+      modell: llm.modell,
+      syntetisk: true,
+      sprak,
+      ...(valgt.avvist ? { advarsel: `Svar forkastet av sperrene: ${valgt.avvist}` } : {})
+    };
+  } catch (error) {
+    return {
+      ...velgPersonligBrev(inn, ""),
+      modell: "mock-ai-gateway",
+      syntetisk: true,
+      sprak,
+      advarsel: `Provider ${aiProvider} feilet: ${feilmelding(error)}`
+    };
+  }
+}
+
+/*
  * Answers a free-standing question from a citizen, mid-flow.
  *
  * This endpoint has no data access of its own. It never calls sandbox-backend,
@@ -2313,6 +2490,61 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
         sporingsId: body.sporingsId || newId("flyt"),
         handling: "KI_KALL",
         ressurs: "sporsmaal",
+        aktor: { type: "system", id: "ai-gateway" }
+      });
+      jsonResponse(response, 200, svar);
+      return;
+    }
+
+    // Ikke blant gyldigeStier under, av samme grunn som /ai/sporsmaal: de fem der
+    // går gjennom buildAiResponse, som ikke validerer noe etter modellen. Denne
+    // teksten leses av en innbygger, så svaret må gjennom sperrene.
+    if (request.method === "POST" && url.pathname === "/ai/begrunn-tilbud") {
+      const body = await readRequestBody(request) as AiKropp;
+      const svar = await buildTilbudsbegrunnelser({
+        ...body,
+        kontekst: utenIdentifikatorer(body?.kontekst)
+      } as AiKropp);
+      await addRevisjon({
+        sporingsId: body.sporingsId || newId("flyt"),
+        handling: "KI_KALL",
+        ressurs: "begrunn-tilbud",
+        aktor: { type: "system", id: "ai-gateway" }
+      });
+      jsonResponse(response, 200, svar);
+      return;
+    }
+
+    // Ikke blant gyldigeStier under, av samme grunn som /ai/begrunn-tilbud: denne
+    // teksten går rett i en SMS, og svaret må gjennom sperrene i personligsms.ts.
+    if (request.method === "POST" && url.pathname === "/ai/personlig-sms") {
+      const body = await readRequestBody(request) as AiKropp;
+      const svar = await buildPersonligSms({
+        ...body,
+        kontekst: utenIdentifikatorer(body?.kontekst)
+      } as AiKropp);
+      await addRevisjon({
+        sporingsId: body.sporingsId || newId("flyt"),
+        handling: "KI_KALL",
+        ressurs: "personlig-sms",
+        aktor: { type: "system", id: "ai-gateway" }
+      });
+      jsonResponse(response, 200, svar);
+      return;
+    }
+
+    // Ikke blant gyldigeStier under, av samme grunn: svaret går inn i en PDF, og
+    // må gjennom sperrene i personligbrev.ts.
+    if (request.method === "POST" && url.pathname === "/ai/personlig-brev") {
+      const body = await readRequestBody(request) as AiKropp;
+      const svar = await buildPersonligBrev({
+        ...body,
+        kontekst: utenIdentifikatorer(body?.kontekst)
+      } as AiKropp);
+      await addRevisjon({
+        sporingsId: body.sporingsId || newId("flyt"),
+        handling: "KI_KALL",
+        ressurs: "personlig-brev",
         aktor: { type: "system", id: "ai-gateway" }
       });
       jsonResponse(response, 200, svar);

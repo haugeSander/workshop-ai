@@ -22,26 +22,41 @@ import {
   forklarHandleevne,
   representantPider
 } from "../../shared/handleevne.ts";
-import { openapiFile } from "./config.ts";
+import { norskKalenderdato } from "../../shared/alder.ts";
+import { aiBaseUrl, openapiFile } from "./config.ts";
+import { tryUpstream } from "./upstream.ts";
 import {
   byggBekreftelsestekst,
   finnArrangementer,
+  hentVarselkanal,
   kjoerPaaminnelse,
   kjoerVarsling,
   lesUtsendinger,
   PAAMELDINGSHJEMMEL,
   sendEnkeltvarsel,
+  SENIORSIRKEL_KONTAKT_HJEMMEL,
+  utsendingsnoekkel,
   VARSELHJEMMEL
 } from "./varsling.ts";
+import {
+  finnGjeldendeSeniorsirkelSamtykke,
+  opprettSeniorsirkelSamtykke,
+  svarSeniorsirkelSamtykke,
+  trekkSeniorsirkelSamtykke
+} from "./seniorsirkelsamtykke.ts";
+import { byggBrevinnhold, lesBrevrad, renderBrevPdf, sendBrev } from "./brev.ts";
+import { erBrevtype } from "../../shared/brev.ts";
+import type { Brevtype } from "../../shared/brev.ts";
+import { cors } from "../../shared/http.ts";
 import { routeOverview } from "../../shared/openapi.ts";
 import {
   fjernPortalregistrering,
   finnPortaltilbud,
-  hentAktivitetskategorier,
+  byggPortalvisning,
   hentAktivitetskatalog,
+  hentInteressegrupper,
   hentPortalpreferanse,
   hentPortalregistreringer,
-  hentPortaltilbud,
   lagrePortalpreferanse,
   lagrePortalregistreringer
 } from "./innbyggerportal.ts";
@@ -197,16 +212,88 @@ function portalperson(
   return person;
 }
 
-function portalalder(person: { foedselsdato?: string }, kategorier?: string[]) {
+/**
+ * Portalvisningen for én innbygger, skåret av `rangerTilbud`.
+ *
+ * Kommunen og fødselsdatoen leses av registeret og aldri av spørringen, av samme
+ * grunn som i /api/seniorsirkel/forslag: en kaller som kunne oppgi kommunen sin
+ * selv, hadde gjort det harde kravet i skåringen til en innstilling.
+ */
+async function portalvisning(
+  person: { personId: string; foedselsdato?: string },
+  valgtTilbudId?: string | null
+) {
   if (!person.foedselsdato) {
     throw new HttpError("Mockpersonen mangler fødselsdato.", 500);
   }
-  return hentPortaltilbud(
-    person.foedselsdato,
-    (person as { bostedsadresse?: { kommunenummer?: string | null } }).bostedsadresse?.kommunenummer,
-    undefined,
-    kategorier
-  );
+  const [preferanse, registreringer] = await Promise.all([
+    hentPortalpreferanse(person.personId),
+    hentPortalregistreringer(person.personId)
+  ]);
+  return byggPortalvisning({
+    personId: person.personId,
+    foedselsdato: person.foedselsdato,
+    kommunenummer: (person as { bostedsadresse?: { kommunenummer?: string | null } })
+      .bostedsadresse?.kommunenummer,
+    referansedato: norskKalenderdato(),
+    preferanse,
+    registreringer,
+    ...(valgtTilbudId === undefined ? {} : { valgtTilbudId })
+  });
+}
+
+/**
+ * Telefonnummeret til kommunen selv, fra katalogens tilbyderliste.
+ *
+ * Lest av data, ikke en kode-konstant: det er det samme nummeret footeren i
+ * brev-kjell.pdf viser, «32 11 74 00», og en kommune som bytter katalog skal
+ * ikke måtte finne en hardkodet streng i tillegg.
+ */
+function finnKommunetelefon(katalog: { tilbydere?: { tilbyderId: string; kontakt?: Record<string, unknown> }[] }): string {
+  const kommune = katalog.tilbydere?.find((rad) => rad.tilbyderId === "ringerike-kommune");
+  const telefon = kommune?.kontakt?.telefon;
+  return typeof telefon === "string" ? telefon : "";
+}
+
+/** Dagens dato i Europe/Oslo, som «10.09.2026». Ombygging av norskKalenderdato()s ISO-streng, ikke en ny klokke. */
+function brevdato(): string {
+  return norskKalenderdato().split("-").reverse().join(".");
+}
+
+/**
+ * Kanalen for én person, og om hun hører til brev-sporet.
+ *
+ * Ett sted, ikke to: `/kanal/:personId` og `/brev/utkast` stilte begge det
+ * samme spørsmålet før denne fantes, og en endring i den ene predikatet uten
+ * den andre er nettopp driften AGENTS.md advarer mot.
+ */
+/**
+ * Raden for et varsel som allerede gikk ut, når sendEnkeltvarsel svarer
+ * `null` fordi nøkkelen alt fantes.
+ *
+ * En stepper som lar en fasilitator gå tilbake til et steg må kunne vise det
+ * steget som fullført uten å late som om et nytt varsel ble sendt - se
+ * "view, not resend" i planen for varsel-SMS-veiviseren.
+ */
+async function finnEksisterendeUtsending(kandidat: {
+  varseltype: string; personId: string; tilbudId?: string; dato?: string;
+}) {
+  const noekkel = utsendingsnoekkel(kandidat as any);
+  const alle = await lesUtsendinger();
+  return alle.find((rad) => rad.noekkel === noekkel) ?? null;
+}
+
+async function hentKanalinfo(person: { personId: string; syntetiskFodselsnummer: string; bostedsadresse?: any }) {
+  const utfall = await hentVarselkanal(person.syntetiskFodselsnummer);
+  if (!utfall.ok) throw utfall.error;
+  const adresse = person.bostedsadresse;
+  const harGyldigPostadresse = Boolean(adresse?.adressenavn && adresse?.postnummer && adresse?.poststed);
+  const kanal = utfall.data?.kanal ?? "INGEN";
+  return {
+    kanal,
+    grunn: utfall.data?.grunn,
+    kanBrev: kanal === "INGEN" && harGyldigPostadresse
+  };
 }
 
 // --- the økt contract, in one place ----------------------------------------
@@ -406,8 +493,8 @@ const ruter: Rute[] = [
     metode: "GET",
     tilgang: "aapen",
     sti: "/api/innbyggerportal/placeholder/aktiviteter",
-    handter: ({ response }) => {
-      jsonResponse(response, 200, hentAktivitetskatalog());
+    handter: async ({ response }) => {
+      jsonResponse(response, 200, await hentAktivitetskatalog());
     }
   },
   {
@@ -452,8 +539,11 @@ const ruter: Rute[] = [
       jsonResponse(response, 200, {
         personId: person.personId,
         ferdigstilt: preferanse !== null,
-        kategorier: preferanse?.kategorier ?? [],
-        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        grupper: preferanse?.grupper ?? [],
+        // Utelatt betyr ikke oppgitt, den tredje tilstanden. Se Portalpreferanse.
+        ...(preferanse?.rullestol === undefined ? {} : { rullestol: preferanse.rullestol }),
+        ...(preferanse?.teleslynge === undefined ? {} : { teleslynge: preferanse.teleslynge }),
+        tilgjengeligeGrupper: await hentInteressegrupper(),
         mock: true,
         syntetisk: true
       });
@@ -467,7 +557,11 @@ const ruter: Rute[] = [
       const person = portalperson(tilstand, kaller, body.personId);
       let preferanse;
       try {
-        preferanse = await lagrePortalpreferanse(person.personId, body.kategorier);
+        preferanse = await lagrePortalpreferanse(person.personId, {
+          grupper: body.grupper,
+          rullestol: body.rullestol,
+          teleslynge: body.teleslynge
+        });
       } catch (feil) {
         throw new HttpError(feil instanceof Error ? feil.message : "Ugyldige kategorier.", 400);
       }
@@ -477,13 +571,13 @@ const ruter: Rute[] = [
         ressurs: "innbyggerportal-preferanser",
         formaal: "Tilpasse anbefalte aktiviteter",
         gjaldt: person.personId,
-        antall: preferanse.kategorier.length,
+        antall: preferanse.grupper.length,
         aktor: aktorFor(kaller, person.personId)
       });
       jsonResponse(response, 200, {
         ...preferanse,
         ferdigstilt: true,
-        tilgjengeligeKategorier: hentAktivitetskategorier(),
+        tilgjengeligeGrupper: await hentInteressegrupper(),
         mock: true,
         syntetisk: true
       });
@@ -494,27 +588,7 @@ const ruter: Rute[] = [
     sti: "/api/innbyggerportal/placeholder/tilbud",
     handter: async ({ response, url, tilstand, kaller }) => {
       const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
-      const preferanse = await hentPortalpreferanse(person.personId);
-      const resultat = portalalder(person, preferanse?.kategorier ?? []);
-      const alleTilgjengelige = portalalder(person).aktiviteter;
-      const registreringer = await hentPortalregistreringer(person.personId);
-      const registrerteAktivitetIder = new Set(registreringer.map((registrering) => registrering.aktivitetId));
-      resultat.aktiviteter = resultat.aktiviteter.filter(
-        (aktivitet) => !registrerteAktivitetIder.has(aktivitet.aktivitetId)
-      );
-      const anbefalteIder = new Set(resultat.aktiviteter.map((aktivitet) => aktivitet.aktivitetId));
-      const andreAktiviteter = preferanse
-        ? alleTilgjengelige.filter((aktivitet) =>
-            !anbefalteIder.has(aktivitet.aktivitetId)
-            && !registrerteAktivitetIder.has(aktivitet.aktivitetId)
-          )
-        : [];
-      const valgtTilbudId = url.searchParams.get("tilbudId");
-      const valgtAktivitet = alleTilgjengelige.find((aktivitet) =>
-        !registrerteAktivitetIder.has(aktivitet.aktivitetId)
-        &&
-        aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === valgtTilbudId)
-      ) ?? null;
+      const visning = await portalvisning(person, url.searchParams.get("tilbudId"));
       await addRevisjon({
         sporingsId: getSporingsId(url),
         handling: "PORTALTILBUD_VIST",
@@ -523,52 +597,116 @@ const ruter: Rute[] = [
         gjaldt: person.personId,
         aktor: aktorFor(kaller, person.personId)
       });
-      jsonResponse(response, 200, {
-        personId: person.personId,
-        ...resultat,
-        andreAktiviteter,
-        preferanserValgt: preferanse !== null,
-        valgteKategorier: preferanse?.kategorier ?? [],
-        valgtAktivitet,
-        mock: true,
-        syntetisk: true
-      });
+      jsonResponse(response, 200, { ...visning, mock: true, syntetisk: true });
+    }
+  },
+  {
+    /*
+     * Setningen som sier hvorfor hvert tilbud står der det står.
+     *
+     * Egen rute og ikke en del av /tilbud, fordi de to har hver sin hastighet:
+     * kortene er skåringens svar og skal stå med én gang, mens setningen er et
+     * modellkall. Portalen tegner listen først og fyller inn setningene når de
+     * kommer - da ser innbyggeren aldri en tom side mens en modell tenker, og
+     * det er synlig hvilket lag som avgjorde og hvilket som formulerte.
+     *
+     * **Kodene bygges her, ikke av kalleren.** Ruten kjører skåringen på nytt og
+     * sender modellen det den kom fram til. En klient som kunne oppgi
+     * begrunnelseskodene selv, kunne fått modellen til å skrive hva som helst om
+     * et tilbud - og det ville stått som kommunens tekst.
+     *
+     * Beste forsøk: `tryUpstream`, så en KI-gateway som er nede blir en advarsel
+     * og ikke en 502. Gatewayen svarer med regelens setning i samme tilfelle, og
+     * dette er laget som svarer når den ikke svarer i det hele tatt.
+     */
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/begrunnelser",
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const visning = await portalvisning(person);
+      const rader = [...visning.anbefalte, ...visning.utelukkede];
+      if (!visning.portalTilgjengelig || rader.length === 0) {
+        jsonResponse(response, 200, { begrunnelser: [], mock: true, syntetisk: true });
+        return;
+      }
+      const sporingsId = getSporingsId(url);
+      const svar = await tryUpstream<any>(
+        { service: "KI-tjenesten", action: "Å skrive begrunnelsene" },
+        () => fetch(`${aiBaseUrl}/ai/begrunn-tilbud`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sporingsId,
+            sprak: "nb",
+            kontekst: {
+              tilbud: rader.map((rad) => ({
+                tilbudId: rad.tilbudId,
+                navn: rad.tilbudsnavn ?? rad.navn,
+                beskrivelse: rad.beskrivelse,
+                begrunnelseskoder: rad.begrunnelseskoder
+              }))
+            }
+          })
+        })
+      );
+      jsonResponse(response, 200, svar.ok
+        ? { ...svar.data, sporingsId, mock: true, syntetisk: true }
+        : {
+          begrunnelser: [],
+          sporingsId,
+          advarsel: svar.error.message,
+          mock: true,
+          syntetisk: true
+        });
+    }
+  },
+  {
+    /*
+     * Samtykket til personlig kontakt om seniortilbud, slik portalen ber om
+     * det (se seniorsirkelsamtykke.ts for hvorfor formålet er et eget en, og
+     * ikke en DATAKILDER-verdi). Ikke lenger en placeholder: ruten svarer med
+     * det Fiks faktisk lagret.
+     */
+    metode: "GET",
+    sti: "/api/innbyggerportal/placeholder/samtykke",
+    handter: async ({ response, url, tilstand, kaller }) => {
+      const person = portalperson(tilstand, kaller, url.searchParams.get("personId"));
+      const samtykke = await finnGjeldendeSeniorsirkelSamtykke(person.personId);
+      jsonResponse(response, 200, { samtykke, mock: true, syntetisk: true });
     }
   },
   {
     metode: "POST",
     sti: "/api/innbyggerportal/placeholder/samtykke",
-    handter: async ({ request, response, tilstand, kaller }) => {
+    handter: async ({ request, response, url, tilstand, kaller }) => {
       const body = await readBodyOnce(request);
       const person = portalperson(tilstand, kaller, body.personId);
-      jsonResponse(response, 201, {
-        samtykkeId: `placeholder-samtykke-${person.personId}`,
-        personId: person.personId,
-        formaal: "Bruke kontaktopplysningene dine til å følge opp tilbud du ber om kontakt om",
-        dataKilder: ["kontaktinfo"],
-        status: "VENTER_PAA_SVAR",
-        mock: true,
-        syntetisk: true
-      });
+      const samtykke = await opprettSeniorsirkelSamtykke(person.personId, getSporingsId(url));
+      jsonResponse(response, 201, { ...samtykke, mock: true, syntetisk: true });
     }
   },
   {
     metode: "PUT",
     sti: "/api/innbyggerportal/placeholder/samtykke/:samtykkeId/svar",
-    handter: async ({ request, response, parametere, tilstand, kaller }) => {
+    handter: async ({ request, response, parametere, url, tilstand, kaller }) => {
       const body = await readBodyOnce(request);
       const person = portalperson(tilstand, kaller, body.personId);
-      if (parametere.samtykkeId !== `placeholder-samtykke-${person.personId}`) {
-        throw new HttpError("Fant ikke samtykkeforespørselen.", 404);
-      }
       const status = body.status === "IKKE_SAMTYKKET" ? "IKKE_SAMTYKKET" : "SAMTYKKET";
-      jsonResponse(response, 200, {
-        samtykkeId: parametere.samtykkeId,
-        personId: person.personId,
-        status,
-        mock: true,
-        syntetisk: true
-      });
+      const samtykke = await svarSeniorsirkelSamtykke(
+        parametere.samtykkeId, status, getSporingsId(url), aktorFor(kaller, person.personId));
+      jsonResponse(response, 200, { ...samtykke, mock: true, syntetisk: true });
+    }
+  },
+  {
+    /** Trekker et samtykke som allerede er gitt. Egen rute og ikke .../svar med en tredje statusverdi: SAMTYKKEOVERGANGER lar bare SAMTYKKET -> TRUKKET, aldri VENTER_PAA_SVAR -> TRUKKET. */
+    metode: "PUT",
+    sti: "/api/innbyggerportal/placeholder/samtykke/:samtykkeId/trekk",
+    handter: async ({ request, response, parametere, url, tilstand, kaller }) => {
+      const body = await readBodyOnce(request);
+      const person = portalperson(tilstand, kaller, body.personId);
+      const samtykke = await trekkSeniorsirkelSamtykke(
+        parametere.samtykkeId, getSporingsId(url), aktorFor(kaller, person.personId));
+      jsonResponse(response, 200, { ...samtykke, mock: true, syntetisk: true });
     }
   },
   {
@@ -600,23 +738,29 @@ const ruter: Rute[] = [
     handter: async ({ request, response, tilstand, kaller, url }) => {
       const body = await readBodyOnce(request);
       const person = portalperson(tilstand, kaller, body.personId);
-      const aktuelle = portalalder(person);
+      const aktuelle = await portalvisning(person);
       const tilbudIder: string[] = Array.isArray(body.tilbudIder)
         ? [...new Set<string>(body.tilbudIder.filter((verdi: unknown): verdi is string => typeof verdi === "string"))]
         : [];
       if (!aktuelle.portalTilgjengelig || tilbudIder.length === 0) {
         throw new HttpError("Velg minst ett tilgjengelig tilbud.", 400);
       }
-      const valgte = tilbudIder.map((tilbudId) => {
-        const treff = finnPortaltilbud(tilbudId);
-        const erTilgjengelig = aktuelle.aktiviteter.some((aktivitet) =>
-          aktivitet.tilbud.some((tilbud) => tilbud.tilbudId === tilbudId)
-        );
-        if (!treff || !erTilgjengelig) {
+      /*
+       * Porten er den samme skåringen portalen viser, og de utelukkede er *ikke*
+       * med. Et tilbud et hardt krav stengte står i visningen fordi innbyggeren
+       * har krav på å vite at det finnes - det gjør det ikke til noe hun kan
+       * melde seg på herfra. Skåringen avgjør begge deler, så en dør en rullestol
+       * ikke kommer gjennom kan ikke bli en påmelding ved å kalle ruten direkte.
+       */
+      const aapne = new Map([...aktuelle.anbefalte, ...aktuelle.andre]
+        .map((rad) => [rad.tilbudId, rad]));
+      const valgte = await Promise.all(tilbudIder.map(async (tilbudId) => {
+        const treff = aapne.has(tilbudId) ? await finnPortaltilbud(tilbudId) : null;
+        if (!treff) {
           throw new HttpError(`Tilbudet ${tilbudId} er ikke tilgjengelig for innbyggeren.`, 400);
         }
         return treff;
-      });
+      }));
       let opprettet;
       try {
         opprettet = await lagrePortalregistreringer(person.personId, valgte);
@@ -1089,14 +1233,350 @@ const ruter: Rute[] = [
     tilgang: "bred",
     scope: SCOPE_VARSLING,
     finnPersonId: () => null,
-    handter: async ({ response }) => {
-      const utsendinger = await lesUtsendinger();
+    handter: async ({ response, url }) => {
+      const personId = url.searchParams.get("personId");
+      const alle = await lesUtsendinger();
+      const utsendinger = personId ? alle.filter((rad) => rad.personId === personId) : alle;
       jsonResponse(response, 200, {
         hjemmel: VARSELHJEMMEL,
         utsendinger,
         antall: utsendinger.length,
         syntetisk: true
       });
+    }
+  },
+  {
+    /**
+     * Hvilken kanal denne personen ville fått et varsel på, uten å sende noe.
+     *
+     * `kanBrev` sier om personen hører til brev-sporet: ingen digital
+     * varselkanal (reservert, ukjent i registeret eller ingen
+     * kontaktopplysning) OG en postadresse SvarUt faktisk kan bruke.
+     * `person-404`-scenarioet (streng fortrolig adresse + reservert) faller
+     * riktig ut her, sjøl om `grunn` er `reservert`: skjermingen har alt
+     * nullet adressen hans, og `harGyldigPostadresse` under leser den
+     * allerede maskerte personen, ikke registeret på nytt.
+     */
+    metode: "GET",
+    sti: "/api/varsel/seniorsirkel/kanal/:personId",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response, parametere, tilstand }) => {
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === parametere.personId);
+      if (!person) {
+        throw new HttpError("Fant ikke personen.", 404);
+      }
+      const info = await hentKanalinfo(person);
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        kanal: info.kanal,
+        ...(info.grunn ? { grunn: info.grunn } : {}),
+        kanBrev: info.kanBrev,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /**
+     * Steg 1 i varsel-SMS-veiviseren: en kunngjøring uten samtykke, uten
+     * personalisering utover en varm åpningssetning KI-en skriver. Ingen
+     * port her - alle kan få vite at portalen finnes.
+     */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/sms/kunngjoring",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ request, response, tilstand, url }) => {
+      const body = await readBodyOnce(request);
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === body?.personId);
+      if (!person) {
+        throw new HttpError("personId er påkrevd og må finnes.", 400);
+      }
+      const sporingsId = getSporingsId(url);
+      const katalog = await hentAktivitetskatalog();
+      const svar = await tryUpstream<any>(
+        { service: "KI-tjenesten", action: "Å skrive kunngjørings-SMS-en" },
+        () => fetch(`${aiBaseUrl}/ai/personlig-sms`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sporingsId,
+            sprak: "nb",
+            kontekst: {
+              ramme: "kunngjoring",
+              fornavn: person.navn.fornavn,
+              kommunenavn: katalog.kommunenavn,
+              lenke: "«min side» i innbyggerportalen",
+              telefon: finnKommunetelefon(katalog),
+              forslag: []
+            }
+          })
+        })
+      );
+      if (!svar.ok) {
+        throw svar.error;
+      }
+      const kandidat = { personId: person.personId, varseltype: "portal-kunngjoring" as const };
+      const nyRad = await sendEnkeltvarsel({
+        ...kandidat,
+        fnr: person.syntetiskFodselsnummer,
+        tekst: svar.data.tekst
+      }, { sporingsId, hjemmel: VARSELHJEMMEL });
+      // nyRad er null når nøkkelen alt fantes - da har vi nettopp bedt KI-en om
+      // en ny tekst uten å sende den, og svar.data.tekst er derfor IKKE det som
+      // faktisk gikk ut. Den historiske teksten står i Fiks' utboks, ikke her -
+      // se GET .../utsendinger + GET /fiks/varsler, samme oppslag som Oversikt-
+      // fanens logg allerede gjør.
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        ...(nyRad ? { tekst: svar.data.tekst, kilde: svar.data.kilde } : {}),
+        ...(svar.data.advarsel && nyRad ? { advarsel: svar.data.advarsel } : {}),
+        utsending: nyRad ?? await finnEksisterendeUtsending(kandidat),
+        alleredeSendt: !nyRad,
+        sporingsId,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /**
+     * Steg 2 og 4 i varsel-SMS-veiviseren: en personlig SMS om tilbud som
+     * skårer høyt for henne, sperret bak samtykke - se
+     * SENIORSIRKEL_KONTAKT_HJEMMEL i varsling.ts for hvorfor grunnlaget
+     * skifter her, og ikke for kunngjøringen over.
+     */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/sms/tilbud",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ request, response, tilstand, url }) => {
+      const body = await readBodyOnce(request);
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === body?.personId);
+      if (!person) {
+        throw new HttpError("personId er påkrevd og må finnes.", 400);
+      }
+      const samtykke = await finnGjeldendeSeniorsirkelSamtykke(person.personId);
+      if (samtykke?.status !== "SAMTYKKET") {
+        throw new HttpError(
+          "Personen har ikke samtykket til personlig kontakt om seniortilbud.", 403);
+      }
+      const ramme = body?.ramme === "oppfolging" ? "tilbud-oppfolging" : "tilbud-forstegang";
+      const visning = await portalvisning(person);
+      const forslag = visning.anbefalte.slice(0, 3).map((rad) => ({ navn: rad.navn }));
+      const sporingsId = getSporingsId(url);
+      const katalog = await hentAktivitetskatalog();
+      const svar = await tryUpstream<any>(
+        { service: "KI-tjenesten", action: "Å skrive tilbuds-SMS-en" },
+        () => fetch(`${aiBaseUrl}/ai/personlig-sms`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sporingsId,
+            sprak: "nb",
+            kontekst: {
+              ramme,
+              fornavn: person.navn.fornavn,
+              kommunenavn: katalog.kommunenavn,
+              lenke: "«min side» i innbyggerportalen",
+              telefon: finnKommunetelefon(katalog),
+              forslag
+            }
+          })
+        })
+      );
+      if (!svar.ok) {
+        throw svar.error;
+      }
+      const kandidat = {
+        personId: person.personId,
+        varseltype: "tilbud-finnes" as const,
+        tilbudId: forslag.length > 0 ? visning.anbefalte[0]!.tilbudId : undefined
+      };
+      const nyRad = await sendEnkeltvarsel({
+        ...kandidat,
+        fnr: person.syntetiskFodselsnummer,
+        tekst: svar.data.tekst
+      }, { sporingsId, hjemmel: SENIORSIRKEL_KONTAKT_HJEMMEL });
+      // Samme begrunnelse som i sms/kunngjoring over: et null-svar betyr at
+      // nøkkelen alt fantes, og svar.data.tekst er da bare det KI-en skrev nå -
+      // ikke det som faktisk gikk ut.
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        ...(nyRad ? { tekst: svar.data.tekst, kilde: svar.data.kilde } : {}),
+        ...(svar.data.advarsel && nyRad ? { advarsel: svar.data.advarsel } : {}),
+        utsending: nyRad ?? await finnEksisterendeUtsending(kandidat),
+        alleredeSendt: !nyRad,
+        sporingsId,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /** Steg 1 i varsel-brev-veiviseren: kun utkastet, ingen sending og ingen ledgerrad ennå. */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/brev/utkast",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ request, response, tilstand, url }) => {
+      const body = await readBodyOnce(request);
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === body?.personId);
+      if (!person) {
+        throw new HttpError("personId er påkrevd og må finnes.", 400);
+      }
+      if (!erBrevtype(body?.brevtype)) {
+        throw new HttpError(`brevtype må være en av: aapning, oppfolging.`, 400);
+      }
+      const brevtype = body.brevtype as Brevtype;
+      const info = await hentKanalinfo(person);
+      if (!info.kanBrev) {
+        throw new HttpError(
+          "Personen har en digital varselkanal, eller ingen gyldig postadresse - hører ikke til brevsporet.",
+          400
+        );
+      }
+      const visning = await portalvisning(person);
+      const sporingsId = getSporingsId(url);
+      const katalog = await hentAktivitetskatalog();
+      const hendelser = brevtype === "oppfolging"
+        ? (await hentPortalregistreringer(person.personId)).slice(0, 3)
+          .map((rad) => ({ navn: rad.navn, grunnlag: "paameldt" as const }))
+        : [];
+      const svar = await tryUpstream<any>(
+        { service: "KI-tjenesten", action: "Å skrive brevavsnittene" },
+        () => fetch(`${aiBaseUrl}/ai/personlig-brev`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sporingsId,
+            sprak: "nb",
+            kontekst: {
+              brevtype,
+              fornavn: person.navn.fornavn,
+              kommunenavn: katalog.kommunenavn,
+              telefon: finnKommunetelefon(katalog),
+              forslag: brevtype === "aapning"
+                ? visning.anbefalte.slice(0, 3).map((rad) => ({ navn: rad.navn, kategori: rad.kategori }))
+                : [],
+              hendelser
+            }
+          })
+        })
+      );
+      if (!svar.ok) throw svar.error;
+      jsonResponse(response, 200, {
+        personId: person.personId,
+        brevtype,
+        avsnitt: svar.data.avsnitt,
+        kilde: svar.data.kilde,
+        ...(svar.data.advarsel ? { advarsel: svar.data.advarsel } : {}),
+        sporingsId,
+        syntetisk: true
+      });
+    }
+  },
+  {
+    /** Steg 2 og 3 i varsel-brev-veiviseren: brevet, sendt, med utkastets avsnitt om ikke oppgitt på nytt. */
+    metode: "POST",
+    sti: "/api/varsel/seniorsirkel/brev",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ request, response, tilstand, url }) => {
+      const body = await readBodyOnce(request);
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === body?.personId);
+      if (!person) {
+        throw new HttpError("personId er påkrevd og må finnes.", 400);
+      }
+      if (!erBrevtype(body?.brevtype)) {
+        throw new HttpError(`brevtype må være en av: aapning, oppfolging.`, 400);
+      }
+      const brevtype = body.brevtype as Brevtype;
+      const avsnitt: string[] = Array.isArray(body?.avsnitt)
+        ? body.avsnitt.filter((linje: unknown): linje is string => typeof linje === "string")
+        : [];
+      if (avsnitt.length === 0) {
+        throw new HttpError("avsnitt er påkrevd - kall .../brev/utkast først.", 400);
+      }
+      const kilde = body?.kilde === "regel" ? "regel" as const : "modell" as const;
+      const katalog = await hentAktivitetskatalog();
+      const visning = await portalvisning(person);
+      const innhold = byggBrevinnhold({
+        person,
+        brevtype,
+        kommunenavn: katalog.kommunenavn,
+        avsnitt,
+        punkter: visning.anbefalte.slice(0, 4).map((rad) => rad.navn),
+        telefon: finnKommunetelefon(katalog),
+        dato: brevdato()
+      });
+      const sporingsId = getSporingsId(url);
+      const rad = await sendBrev(person, brevtype, innhold.overskrift, { avsnitt, kilde }, sporingsId);
+      if (!rad) {
+        throw new HttpError(`Dette brevet er allerede sendt til ${person.navn.fornavn}.`, 409);
+      }
+      jsonResponse(response, 200, { ...rad, syntetisk: true });
+    }
+  },
+  {
+    metode: "GET",
+    sti: "/api/varsel/seniorsirkel/brev/:brevtype/:personId",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response, parametere }) => {
+      if (!erBrevtype(parametere.brevtype)) {
+        throw new HttpError(`brevtype må være en av: aapning, oppfolging.`, 400);
+      }
+      const rad = await lesBrevrad(parametere.personId, parametere.brevtype as Brevtype);
+      if (!rad) {
+        throw new HttpError("Fant ingen sendt brev for denne personen og brevtypen.", 404);
+      }
+      const status = rad.forsendelseId ? await readForsendelsesstatus(rad.forsendelseId) : null;
+      jsonResponse(response, 200, { ...rad, ...(status ? { status: status.status } : {}), syntetisk: true });
+    }
+  },
+  {
+    /** PDF-en, tegnet på nytt fra ledgerens avsnitt hver gang - se brev.ts. */
+    metode: "GET",
+    sti: "/api/varsel/seniorsirkel/brev/:brevtype/:personId/pdf",
+    tilgang: "bred",
+    scope: SCOPE_VARSLING,
+    finnPersonId: () => null,
+    handter: async ({ response, parametere, tilstand }) => {
+      if (!erBrevtype(parametere.brevtype)) {
+        throw new HttpError(`brevtype må være en av: aapning, oppfolging.`, 400);
+      }
+      const brevtype = parametere.brevtype as Brevtype;
+      const rad = await lesBrevrad(parametere.personId, brevtype);
+      if (!rad) {
+        throw new HttpError("Fant ingen sendt brev for denne personen og brevtypen.", 404);
+      }
+      const person = tilstand.personer.find((kandidat: any) => kandidat.personId === parametere.personId);
+      if (!person) {
+        throw new HttpError("Fant ikke personen.", 404);
+      }
+      const katalog = await hentAktivitetskatalog();
+      const visning = await portalvisning(person);
+      const innhold = byggBrevinnhold({
+        person,
+        brevtype,
+        kommunenavn: katalog.kommunenavn,
+        avsnitt: rad.avsnitt,
+        punkter: visning.anbefalte.slice(0, 4).map((tilbud) => tilbud.navn),
+        telefon: finnKommunetelefon(katalog),
+        dato: brevdato()
+      });
+      const pdf = await renderBrevPdf(innhold);
+      response.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="${brevtype}-${parametere.personId}.pdf"`,
+        ...cors()
+      });
+      response.end(pdf);
     }
   },
   {

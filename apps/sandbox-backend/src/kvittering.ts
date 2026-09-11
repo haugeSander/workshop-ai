@@ -155,7 +155,7 @@ export type Kvitteringskropp = {
  * no digital channel either - which is the safe degradation, not an error the
  * citizen pays for.
  */
-function postadresseFor(person: Person): Pick<Kvitteringsmottaker, "adresselinje1" | "postnummer" | "poststed"> {
+export function postadresseFor(person: Person): Pick<Kvitteringsmottaker, "adresselinje1" | "postnummer" | "poststed"> {
   if (isSkjermet(person.adressebeskyttelse)) return {};
   const adresse = person.bostedsadresse;
   if (!adresse?.adressenavn || !adresse.postnummer || !adresse.poststed) return {};
@@ -167,7 +167,7 @@ function postadresseFor(person: Person): Pick<Kvitteringsmottaker, "adresselinje
   };
 }
 
-function fulltNavn(person: Person): string {
+export function fulltNavn(person: Person): string {
   return [person.navn.fornavn, person.navn.mellomnavn, person.navn.etternavn].filter(Boolean).join(" ");
 }
 

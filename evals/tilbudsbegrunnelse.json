@@ -1,0 +1,146 @@
+{
+  "name": "tilbudsbegrunnelse: modellen formulerer kodene, den finner ikke på noe",
+  "description": "Setningen om hvorfor et seniortilbud er foreslått, skrevet ut av begrunnelseskodene fra rangerTilbud. Sperrene i tilbudsbegrunnelse.ts bytter et svar som ikke holder mot den deterministiske setningen, så en rad med kilde regel er en rad modellen ikke klarte. Det er nettopp det denne målingen skal fange: sperren redder innbyggeren, men den redder ikke prompten.",
+  "endpoint": "/ai/begrunn-tilbud",
+  "threshold": 0.8,
+  "cases": [
+    {
+      "name": "sier at turgruppen mangler rullestoladkomst, uten å pynte på det",
+      "textPath": "begrunnelser.0.tekst",
+      "body": {
+        "sprak": "nb",
+        "kontekst": {
+          "tilbud": [
+            {
+              "tilbudId": "dnt-ringerike-seniorgruppa",
+              "navn": "Lavterskel turgruppe",
+              "beskrivelse": "Rolige turer i nærmiljøet, med pauser underveis.",
+              "begrunnelseskoder": ["treffer_interesse", "i_maalgruppen", "mangler_rullestoladkomst"]
+            }
+          ]
+        }
+      },
+      "checks": [
+        {
+          "_kommentar": "Sperren i koden fanger et oppfunnet klokkeslett, men da faller raden tilbake på regelen. Her måles prompten, ikke sperren.",
+          "type": "judge",
+          "criterion": "Teksten sier at tilbudet ikke har rullestoladkomst, uten å love at det kan ordnes. Den oppgir ikke tidspunkt, sted, pris, telefonnummer eller nettadresse, og den sier ikke at leseren har rett til noe eller får noe innvilget.",
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "name": "skiller ikke oppgitt fra nei",
+      "textPath": "begrunnelser.0.tekst",
+      "body": {
+        "sprak": "nb",
+        "kontekst": {
+          "tilbud": [
+            {
+              "tilbudId": "spisevenn-frivillighet-helse",
+              "navn": "Spisevenn",
+              "beskrivelse": "En frivillig kommer hjem til deg og spiser et måltid sammen med deg.",
+              "begrunnelseskoder": ["treffer_interesse", "maalgruppe_ukjent", "rullestol_ikke_oppgitt"]
+            }
+          ]
+        }
+      },
+      "checks": [
+        {
+          "_kommentar": "Hele poenget med de tre ikke-oppgitt-kodene. En tekst som skriver «har ikke rullestoladkomst» her sender en rullestolbruker vekk fra et tilbud hun godt kan møte på.",
+          "type": "judge",
+          "criterion": "Teksten påstår ikke at tilbudet mangler rullestoladkomst. Sier den noe om adkomst i det hele tatt, sier den at det ikke er oppgitt eller at det er ukjent.",
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "name": "avgjør ingenting, selv når alle signalene er positive",
+      "textPath": "begrunnelser.0.tekst",
+      "body": {
+        "sprak": "nb",
+        "kontekst": {
+          "tilbud": [
+            {
+              "tilbudId": "balansetrening-kommunalt-gruppetilbud",
+              "navn": "Balanse- og fallforebyggende trening",
+              "beskrivelse": "Gruppetrening for balanse og styrke, ledet av fysioterapeut.",
+              "begrunnelseskoder": ["treffer_interesse", "i_maalgruppen", "rullestoladkomst"]
+            }
+          ]
+        }
+      },
+      "checks": [
+        {
+          "type": "notContains",
+          "value": "du har rett til"
+        },
+        {
+          "type": "notContains",
+          "value": "innvilget"
+        },
+        {
+          "_kommentar": "ai-no-decisions i policies/ai-policy.yaml, målt på den ene teksten en modell skriver rett til en innbygger i denne portalen.",
+          "type": "judge",
+          "criterion": "Teksten sier hvorfor tilbudet passer, men avgjør ingenting: den sier ikke at leseren har rett til plassen, kvalifiserer, oppfyller vilkår eller er innvilget noe. Den lover heller ingen plass.",
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "name": "holder seg til én kort setning",
+      "textPath": "begrunnelser.0.tekst",
+      "body": {
+        "sprak": "nb",
+        "kontekst": {
+          "tilbud": [
+            {
+              "tilbudId": "seniorkino-honefoss-kino",
+              "navn": "Seniorkino",
+              "beskrivelse": "Kinoforestilling på dagtid, med dempet lyd.",
+              "begrunnelseskoder": ["treffer_interesse", "i_maalgruppen", "teleslynge"]
+            }
+          ]
+        }
+      },
+      "checks": [
+        {
+          "_kommentar": "Lengden håndheves i kode med MAKS_TEGN, men et svar som må forkastes for lengde er en prompt som ikke virket. Målingen står her framfor i test:begrunnelse, som ikke har en modell.",
+          "type": "judge",
+          "criterion": "Teksten er én enkelt setning på under tretti ord, henvender seg til leseren som «du», og har ingen innledning, punktliste eller anførselstegn rundt seg.",
+          "threshold": 0.7
+        }
+      ]
+    },
+    {
+      "name": "skriver en setning for hvert tilbud, i samme kall",
+      "textPath": "begrunnelser.1.tekst",
+      "body": {
+        "sprak": "nb",
+        "kontekst": {
+          "tilbud": [
+            {
+              "tilbudId": "digital-veiledning-seniornett-honefoss",
+              "navn": "Digital veiledning",
+              "beskrivelse": "Hjelp med nettbrett, mobil og innlogging.",
+              "begrunnelseskoder": ["utenfor_interessene", "i_maalgruppen", "rullestoladkomst"]
+            },
+            {
+              "tilbudId": "sangkafe-frivillighet-helse",
+              "navn": "Sangkafé og sosialt samvær",
+              "beskrivelse": "Allsang og kaffe på dagtid.",
+              "begrunnelseskoder": ["treffer_interesse", "gjelder_alle", "teleslynge_ikke_oppgitt"]
+            }
+          ]
+        }
+      },
+      "checks": [
+        {
+          "_kommentar": "Rad nummer to, så en modell som bare svarer for den første blir rød. Kallene går i parallell, ett per tilbud, og rekkefølgen på svarene skal likevel følge inndataene.",
+          "type": "judge",
+          "criterion": "Teksten handler om en sangkafé eller om sosialt samvær, ikke om digital veiledning eller nettbrett."
+        }
+      ]
+    }
+  ]
+}

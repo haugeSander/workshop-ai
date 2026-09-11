@@ -169,6 +169,21 @@ function findFalseCompletionClaims(tekst: string, kontekst: Sporsmaalskontekst |
   return UTFORTMONSTRE.filter((monster) => containsPhrase(ord, foldNorwegian(monster)));
 }
 
+/**
+ * Beslutningsspråk i en tekst som ikke har noe grunnlag å forsvare det med.
+ *
+ * `ai-no-decisions` gjelder hver tekst modellen skriver til en innbygger, ikke
+ * bare svaret på et fritt spørsmål - se policies/ai-policy.yaml. Eksportert
+ * framfor kopiert: en andre liste over de samme femten uttrykkene ville vært en
+ * som kunne komme ut av takt uten at noe ble rødt.
+ *
+ * Tom grunnlagstekst, fordi kalleren her ikke gir modellen noe utfall å gjengi.
+ * Sier den likevel at noen har rett til noe, har den funnet det på selv.
+ */
+export function harBeslutningsspraak(tekst: string): boolean {
+  return findDecisionLanguage(tekst, "").length > 0;
+}
+
 function findDecisionLanguage(tekst: string, grunnlagstekst: string): string[] {
   const ord = foldNorwegian(normalizeText(tekst)).split(" ").filter(Boolean);
   const grunnlagOrd = foldNorwegian(normalizeText(grunnlagstekst));

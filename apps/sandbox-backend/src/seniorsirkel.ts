@@ -12,38 +12,25 @@
 // that fired. One source of truth means a new signal is a row in VEKT and a row
 // in the union, and it cannot disagree with the number it produced.
 import { alderVed } from "../../shared/alder.ts";
+import { BEGRUNNELSESKODER } from "../../shared/begrunnelse.ts";
+import type { Begrunnelseskode } from "../../shared/begrunnelse.ts";
 import type { Aktivitetskatalog, Maalgruppe, Seniortilbud, Tilbud }
   from "../../shared/senioraktivitet.ts";
 
-/**
- * Hvorfor et tilbud skårer som det gjør, positivt og negativt i samme union.
+/*
+ * Kodeverket ligger i apps/shared/begrunnelse.ts, fordi ai-gateway også leser
+ * det: kodene er det modellen skriver setningen innbyggeren leser ut av. Her
+ * ligger regelen - vektene og de harde kravene - og den hører i tjenesten som
+ * avgjør.
  *
- * Kodene er wire: de går til modellen, som skriver setningen innbyggeren leser.
- * Derfor er de en union og ikke `string` - en skrivefeil ville gitt en kode ingen
- * prompt kjenner igjen, og det ville vist seg først når en innbygger nådde den.
- *
- * Tre av dem sier «ikke oppgitt» framfor «nei», og det er med vilje. Katalogen
+ * Tre av kodene sier «ikke oppgitt» framfor «nei», og det er med vilje. Katalogen
  * bærer ukjent tilgjengelighet som ukjent (se `Tilgjengelighet` i
  * apps/shared/senioraktivitet.ts), og skåringen som gjør det samme er den eneste
  * som ikke enten skjuler et tilbud innbyggeren godt kan møte på, eller sender
  * henne til et hun ikke kommer inn på.
  */
-export const BEGRUNNELSESKODER = [
-  "treffer_interesse",
-  "utenfor_interessene",
-  "i_maalgruppen",
-  "gjelder_alle",
-  "utenfor_maalgruppen",
-  "maalgruppe_ukjent",
-  "rullestoladkomst",
-  "rullestol_ikke_oppgitt",
-  "mangler_rullestoladkomst",
-  "teleslynge",
-  "teleslynge_mangler",
-  "teleslynge_ikke_oppgitt",
-  "utenfor_kommunen"
-] as const;
-export type Begrunnelseskode = (typeof BEGRUNNELSESKODER)[number];
+export type { Begrunnelseskode };
+export { BEGRUNNELSESKODER };
 
 /**
  * Kodene som utelukker et tilbud framfor å trekke fra poeng.

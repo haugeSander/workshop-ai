@@ -623,6 +623,10 @@ docker compose down -t 0
 pnpm lint            # tsc --noEmit
 pnpm test            # valider-data.ts: referential integrity across all datasets
 pnpm test:sperrer    # guardrails on /ai/sporsmaal as pure functions
+pnpm test:begrunnelse   # guardrails on the sentence the model writes about a tilbud
+pnpm test:personlig-sms   # guardrails on the personal opening line in a seniorsirkel SMS
+pnpm test:personlig-brev  # guardrails on the personal paragraphs in a seniorsirkel letter
+pnpm test:brev            # brevinnhold and PDF rendering, pure functions and a PDF smoke check
 pnpm test:vilkaar    # the vedtak in vilkaar.ts, as pure functions against fixtures
 pnpm test:seniorsirkel  # the seniorsirkel scoring, pure functions against the fixture
 pnpm test:varsel        # the varsel channel rule (SMS/EPOST/INGEN), pure functions
@@ -678,12 +682,12 @@ pnpm test:agent:nl
 pnpm test:bergen-matrikkel
 ```
 - Optional orchestrated startup script (model selection/reset): `./start.sh --help`.
-- CI (`.github/workflows/ci.yml`) runs `lint`, `test:chat-intent`, `test`, `test:sperrer`,
-  `test:oppsummering`, `test:skjerming`, `test:vilkaar`, `test:seniorsirkel`, `test:varsel`,
-  `test:innbyggerportal`, `test:foedselsnummer`, `test:handleevne`, `test:samtykke`, `test:forsendelse`,
-  `test:upstream`, `test:concurrency`, `test:replay`, `test:chat`, `test:parametere`, `test:imports`,
-  `test:startup`, `test:kodeverk`, `test:revisjon`, `test:openapi`, `test:docs`, `test:agent:dialog`,
-  `test:tools-matrikkel`, `test:agent:matrikkel`, `test:matrikkel-mock` and `test:kontrakt`
+- CI (`.github/workflows/ci.yml`) runs `lint`, `test:chat-intent`, `test`, `test:sperrer`, `test:begrunnelse`,
+  `test:personlig-sms`, `test:personlig-brev`, `test:brev`, `test:oppsummering`, `test:skjerming`, `test:vilkaar`,
+  `test:seniorsirkel`, `test:varsel`, `test:innbyggerportal`, `test:foedselsnummer`, `test:handleevne`,
+  `test:samtykke`, `test:forsendelse`, `test:upstream`, `test:concurrency`, `test:replay`, `test:chat`,
+  `test:parametere`, `test:imports`, `test:startup`, `test:kodeverk`, `test:revisjon`, `test:openapi`, `test:docs`,
+  `test:agent:dialog`, `test:tools-matrikkel`, `test:agent:matrikkel`, `test:matrikkel-mock` and `test:kontrakt`
   on every PR and on push to main, and uploads the contract dump as an artifact. It deliberately
   does **not** run `test:eval` (needs a live model). `test:agent:dialog` starts its own
   isolated services with the AI mock and runs `test:agent` and `test:agent:nl` through

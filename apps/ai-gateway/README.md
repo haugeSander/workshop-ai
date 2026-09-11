@@ -10,7 +10,7 @@ kalles med rå `fetch`; Bedrock er unntaket og bruker en SDK - se «AWS Bedrock�
 
 ## Endepunkter
 
-Ti, alle `POST`:
+Elleve, alle `POST`:
 
 | Endepunkt | Bruk | Kalles av |
 |---|---|---|
@@ -23,6 +23,7 @@ Ti, alle `POST`:
 | `/ai/dialogforslag` | Foreslår neste replikk | ingen - fritt vilt |
 | `/ai/risikosjekk` | Enkel risikovurdering | ingen - fritt vilt |
 | `/ai/sporsmaal` | Fritt spørsmål fra innbygger, midt i en flyt | `demo-gui /chat`, `tools-api` |
+| `/ai/begrunn-tilbud` | Én setning om hvorfor et seniortilbud er foreslått | `sandbox-backend` |
 | `/ai/dommer` | Scorer en tekst mot et kriterium (LLM-as-judge) | `scripts/eval.ts` |
 
 **Kroppsformat:** alt innhold ligger under `kontekst`, *unntatt* `/ai/tolk-svar` og
@@ -101,6 +102,41 @@ derfor `"ja"` svarer med `modell: "heuristisk-tolkning"` uten å røre modellen 
 datoer og navn nøyaktig, ikke regn ut noe selv, ikke innvilg eller avslå. Vilkårs-
 vurderingen er `SJEKK`-steget i `sandbox-backend`, deterministisk og etterprøvbart.
 Se `ai-no-decisions` i `policies/ai-policy.yaml`.
+
+## Sperrene på `/ai/begrunn-tilbud`
+
+Sperrer i kode, og ikke bare i prompten, finnes der en innbygger leser modellens
+ord direkte. Det gjelder dette endepunktet og `/ai/sporsmaal`, og ingen andre.
+Sperrene ligger i
+`tilbudsbegrunnelse.ts`, som er en egen fil av samme grunn som
+`sporsmaalsperrer.ts`: `server.ts` kaller `server.listen` på toppnivå og kan ikke
+importeres av en test.
+
+Skåringen i `sandbox-backend` har alt avgjort hvilke tilbud som er med og hvorfor,
+og «hvorfor» er en liste begrunnelseskoder - kodeverket ligger i
+`apps/shared/begrunnelse.ts`, fordi begge tjenestene leser det. Modellen får
+kodenes mening, navnet og beskrivelsen, og skal skrive én setning. Den får verken
+tid, sted, pris eller telefonnummer, og kan derfor ikke bomme på dem.
+
+Et svar byttes mot den deterministiske setningen når det er lengre enn 240 tegn,
+oppgir en sifferrekke som ikke står i inndataene, oppgir en nettadresse eller
+e-post, eller bruker beslutningsspråk. Den siste sjekken er `harBeslutningsspraak`
+i `sporsmaalsperrer.ts` - eksportert framfor kopiert, så de femten uttrykkene ikke
+kan komme ut av takt. Raden får da `kilde: regel`, og `advarsel` sier hvilken rad og
+hvorfor.
+
+Tallregelen er strengere enn `findUngroundedNumbers`, som er laget for et stort
+grunnlag der bare beløp er verdt å måle og som slipper igjennom alt under tusen.
+Her er inndataene korte og kjente, så hver sifferrekke som ikke står i dem er funnet
+på - og det farligste modellen kan finne på her er nettopp et lite tall: «tirsdager
+klokken 14» sender et menneske til feil sted til feil tid.
+
+Ett kall per tilbud, i parallell, høyst seks, med 20 sekunders tidsavbrudd. En
+innbygger står og venter på en side, og en setning som kommer etter tre minutter
+kommer ikke.
+
+`pnpm test:begrunnelse` dekker sperrene uten modell og kjører i CI.
+`evals/tilbudsbegrunnelse.json` måler prompten og trenger en modell.
 
 Provider-modus:
 

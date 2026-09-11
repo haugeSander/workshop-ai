@@ -36,12 +36,18 @@ export type Varselkanal = (typeof VARSELKANALER)[number];
  * `paamelding-bekreftet` er den tredje varianten: den er *bedt om*. Innbyggeren
  * meldte seg nettopp på, og bekreftelsen er en del av tjenesten hun ba om - ikke
  * en henvendelse vi tok initiativ til.
+ *
+ * `portal-kunngjoring` er en fjerde: den nevner ikke noe tilbud i det hele tatt,
+ * bare at portalen finnes. Den kan ikke dele hjemmel med `tilbud-finnes`, som
+ * loggen leser som «et konkret tilbud ble vurdert for henne» - kunngjøringen har
+ * ikke vurdert noe ennå.
  */
 export const VARSELTYPER = [
   "tilbud-finnes",
   "paamelding-bekreftet",
   "paaminnelse",
-  "avlysning"
+  "avlysning",
+  "portal-kunngjoring"
 ] as const;
 export type Varseltype = (typeof VARSELTYPER)[number];
 

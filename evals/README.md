@@ -23,11 +23,26 @@ så en promptendring kan stoppes på samme måte som en kodeendring.
 | `ai-policy.json` | `ai-no-decisions`: modellen formulerer, den regner ikke og avgjør ikke | 100 % |
 | `samtykke-tolkning.json` | Samtykke skal være informert og utvetydig | 100 % |
 | `innbyggersporsmaal-sperrer.json` | `ai-svar-fra-grunnlag`: sperrene på `/ai/sporsmaal` | 100 % |
+| `tilbudsbegrunnelse.json` | `ai-no-decisions` på setningen innbyggerportalen viser | 80 % |
 
 `innbyggersporsmaal-sperrer.json` tester **sperren**, ikke modellen: forventet resultat er
 at et trygt svar erstattet modellsvaret, og at `advarsel` sier hvorfor. De rene
 sperrefunksjonene testes uten modell i `pnpm test:sperrer`, som kjører i CI; dette
 datasettet beviser at de er koblet på i endepunktet.
+
+`tilbudsbegrunnelse.json` gjør det motsatte, og det er verdt å si hvorfor. Sperrene i
+`apps/ai-gateway/src/tilbudsbegrunnelse.ts` bytter et svar som ikke holder mot den
+deterministiske setningen, så innbyggeren ser aldri et oppfunnet klokkeslett uansett hvor
+dårlig modellen svarer. Da kan ikke datasettet måle om innbyggeren er trygg - det er hun
+alt - men det kan måle om **prompten** virker. En rad som kommer tilbake med
+`kilde: regel` er en modell som bommet, og en modell som bommer ofte er en prompt som må
+skrives om. `pnpm test:begrunnelse` dekker sperrene uten modell, og kjører i CI.
+
+Terskelen er 80 % og ikke 100 %, fordi dette er den ene oppgaven i sandkassen der
+modellen faktisk formulerer noe framfor å gjengi et tall backend har regnet ut. Den
+kjører på temperatur `0.2`, og en dommer som scorer fri tekst er ikke reproduserbar på
+samme måte som en `contains` mot et beløp. Faller den under 80 %, er det prompten som er
+gal - ikke terskelen.
 
 ## Den kjente svakheten er fikset
 

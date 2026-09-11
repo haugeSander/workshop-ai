@@ -1278,6 +1278,27 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
       return;
     }
 
+    /*
+     * Hvilken kanal et varsel *ville* gått på, uten å sende noe.
+     *
+     * `POST /fiks/varsler` avgjør kanalen som en bivirkning av å sende - den
+     * eneste måten å spørre var å faktisk skrive en rad i utboksen. Denne ruten
+     * svarer på det samme spørsmålet uten den bivirkningen, så en fane kan velge
+     * mellom SMS- og brevsporet for en person uten å legge en falsk utsendelse i
+     * loggen for hver gang den som demoer bytter person i en nedtrekksliste.
+     */
+    if (request.method === "GET" && url.pathname === "/fiks/varselkanal") {
+      await requireVarselHjemmel(request);
+      const fnr = url.searchParams.get("fnr");
+      if (!fnr) {
+        throw new FiksError("fnr er påkrevd.", 400, "MANGLER_MOTTAKER");
+      }
+      const krrRad = (await tilstand.krr()).find((kandidat) => kandidat.fnr === fnr);
+      const utfall = velgVarselkanal(krrRad);
+      jsonResponse(response, 200, { ...utfall, syntetisk: true });
+      return;
+    }
+
     if (request.method === "POST" && url.pathname === "/fiks/meldinger") {
       await requireMeldingHjemmel(request);
       const body = await readRequestBody(request) as MeldingKropp;

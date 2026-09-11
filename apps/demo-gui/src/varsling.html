@@ -41,6 +41,18 @@
         .v-sms__boble--ulevert { background: var(--ds-color-neutral-surface-default);
           border-color: var(--ds-color-border-subtle); border-style: dashed;
           color: var(--ds-color-text-subtle); }
+
+        /*
+          Stegviseren er egenkomponert, ikke en designsystem-komponent - det
+          finnes ingen ds-stepper. Bygget av det som alt fins her: ds-button og
+          ds-tag, i en rad som bryter på smale skjermer.
+        */
+        .v-stegviser { display: flex; flex-wrap: wrap; gap: var(--ds-size-2); }
+        .v-stegviser__punkt { display: inline-flex; align-items: center; gap: var(--ds-size-1); }
+        .v-brev__ramme { border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+          border-radius: var(--ds-border-radius-md); overflow: hidden; background: var(--ds-color-surface-default); }
+        .v-brev__ramme iframe { display: block; width: 100%; height: 32rem; border: 0; }
+        [hidden] { display: none !important; }
       }
     </style>
   </head>
@@ -58,139 +70,271 @@
     </header>
 
     <main class="v-main">
-      <section class="v-intro">
-        <h1 class="ds-heading" data-size="lg">Varsling om seniortilbud</h1>
-        <p class="ds-paragraph" data-variant="long">
-          De som har mest å hente på et kommunalt seniortilbud er ofte de samme som ikke
-          oppdager det. Denne jobben finner innbyggere som har rett til tilbudet, og
-          sender dem ett varsel om at det finnes.
-        </p>
-      </section>
+      <div class="ds-tabs" id="varslingfaner">
+        <div role="tablist" aria-label="Varsling om seniortilbud">
+          <button type="button" role="tab" id="oversikt-fane" aria-controls="oversikt-panel" aria-selected="true">Oversikt</button>
+          <button type="button" role="tab" id="sms-fane" aria-controls="sms-panel" aria-selected="false" tabindex="-1">Varsel-SMS</button>
+          <button type="button" role="tab" id="brev-fane" aria-controls="brev-panel" aria-selected="false" tabindex="-1">Varsel-brev</button>
+        </div>
+      </div>
 
-      <!--
-        Hjemmelen står øverst og ikke i en fotnote. Et uanmodet varsel er behandling av
-        personopplysninger, og det er *ikke* samtykke - innbyggeren er aldri spurt.
-        Hele poenget med siden er at det skal være det første man ser.
-      -->
-      <section class="v-section">
-        <div class="ds-alert" data-color="info">
-          <h2 class="ds-heading" data-size="2xs">Grunnlaget er ikke samtykke</h2>
-          <p class="ds-paragraph" data-size="sm" data-variant="long">
-            Innbyggeren har ikke bedt om noe. Hun fyller 62 og bor i kommunen, og så får
-            hun en melding. Grunnlaget er derfor
-            <strong id="behandlingsgrunnlag">…</strong>, supplert av
-            <strong id="suppleringsgrunnlag">…</strong>.
+      <div role="tabpanel" id="oversikt-panel" aria-labelledby="oversikt-fane">
+        <div class="v-main" style="padding: 0; max-width: none">
+          <section class="v-intro">
+            <h1 class="ds-heading" data-size="lg">Varsling om seniortilbud</h1>
+            <p class="ds-paragraph" data-variant="long">
+              De som har mest å hente på et kommunalt seniortilbud er ofte de samme som ikke
+              oppdager det. Denne jobben finner innbyggere som har rett til tilbudet, og
+              sender dem ett varsel om at det finnes.
+            </p>
+          </section>
+
+          <!--
+            Hjemmelen står øverst og ikke i en fotnote. Et uanmodet varsel er behandling av
+            personopplysninger, og det er *ikke* samtykke - innbyggeren er aldri spurt.
+            Hele poenget med siden er at det skal være det første man ser.
+          -->
+          <section class="v-section">
+            <div class="ds-alert" data-color="info">
+              <h2 class="ds-heading" data-size="2xs">Grunnlaget er ikke samtykke</h2>
+              <p class="ds-paragraph" data-size="sm" data-variant="long">
+                Innbyggeren har ikke bedt om noe. Hun fyller 62 og bor i kommunen, og så får
+                hun en melding. Grunnlaget er derfor
+                <strong id="behandlingsgrunnlag">…</strong>, supplert av
+                <strong id="suppleringsgrunnlag">…</strong>.
+              </p>
+              <p class="ds-paragraph" data-size="sm" data-variant="long">
+                Det føres i revisjonsloggen på hver kjøring, også en tørrkjøring - den har
+                lest befolkningen like fullt.
+              </p>
+            </div>
+          </section>
+
+          <section class="v-section">
+            <h2 class="ds-heading" data-size="sm">Kjør jobben</h2>
+            <div class="v-knapper">
+              <button class="ds-button" type="button" data-variant="secondary" id="knappTorr">
+                Tørrkjør - vis hvem som ville fått varsel
+              </button>
+              <button class="ds-button" type="button" id="knappSend">Send varslene</button>
+              <span class="ds-spinner" id="spinner" hidden aria-hidden="true" data-size="sm"></span>
+            </div>
+            <div class="ds-alert" id="melding" hidden aria-live="polite"></div>
+            <div class="v-tall" id="tall" hidden></div>
+          </section>
+
+          <section class="v-section" id="utsendingerSeksjon" hidden>
+            <h2 class="ds-heading" data-size="sm">Hvem, og på hvilken kanal</h2>
+            <p class="ds-paragraph" data-size="sm" data-variant="long">
+              Kolonnen «brev» står ved siden av med vilje. Et varsel har ingen papirkanal -
+              en påminnelse i posten kommer etter turen - så en innbygger som er reservert
+              mot digital kommunikasjon får vedtaket sitt på papir og ingen melding.
+              De to kolonnene skal <em>ikke</em> stemme overens.
+            </p>
+            <div class="v-tabellramme">
+              <table class="ds-table" data-size="sm">
+                <caption class="ds-sr-only">Innbyggere som kvalifiserer, med kanal og begrunnelse</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Person</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Varselkanal</th>
+                    <th scope="col">Hvorfor ikke</th>
+                    <th scope="col">Brev ville gått på</th>
+                  </tr>
+                </thead>
+                <tbody id="utsendinger"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="v-section">
+            <h2 class="ds-heading" data-size="sm">Minn de påmeldte på et arrangement</h2>
+            <p class="ds-paragraph" data-size="sm" data-variant="long">
+              Går til dem som har meldt seg på i innbyggerportalen. Hjemmelen er en annen
+              enn for varselet over: her har innbyggeren selv bedt om tilbudet, og
+              påminnelsen er en del av det. <code>Simuler fra</code> lar deg late som tiden
+              nærmer seg uten å stille klokken.
+            </p>
+            <div class="v-filter">
+              <div class="ds-field">
+                <label class="ds-label" for="arrangement">Arrangement</label>
+                <select class="ds-input" id="arrangement">
+                  <option value="">Laster…</option>
+                </select>
+                <p class="ds-paragraph" data-size="xs" data-field="description" id="arrangementhint">
+                  Bare tilbud som har et tidspunkt å minne om.
+                </p>
+              </div>
+              <div class="ds-field">
+                <label class="ds-label" for="fraDato">Simuler fra</label>
+                <input class="ds-input" type="date" id="fraDato" />
+                <p class="ds-paragraph" data-size="xs" data-field="description">
+                  Blank betyr i dag.
+                </p>
+              </div>
+            </div>
+            <div class="v-knapper">
+              <button class="ds-button" type="button" data-variant="secondary" id="knappPaaminn">
+                Send påminnelse
+              </button>
+            </div>
+            <div class="ds-alert" id="paaminnelsemelding" hidden aria-live="polite"></div>
+          </section>
+
+          <section class="v-section" id="loggSeksjon" hidden>
+            <h2 class="ds-heading" data-size="sm">Logg over sendte varsler</h2>
+            <p class="ds-paragraph" data-size="sm" data-variant="long">
+              Hele historikken, ikke bare siste kjøring. Radene er ledgeren i
+              <code>state/utsendinger.json</code>, slått sammen med teksten fra
+              <code>GET /fiks/varsler</code> på <code>varselId</code>. Nyeste først.
+            </p>
+
+            <div class="v-filter">
+              <div class="ds-field">
+                <label class="ds-label" for="personfilter">Vis varsler til</label>
+                <select class="ds-input" id="personfilter">
+                  <option value="">Alle mottakere</option>
+                </select>
+                <p class="ds-paragraph" data-size="xs" data-field="description" id="filterhint">
+                  Bare innbyggere som står i loggen.
+                </p>
+              </div>
+              <div class="ds-field">
+                <label class="ds-label" for="utfallfilter">Utfall</label>
+                <select class="ds-input" id="utfallfilter">
+                  <option value="">Alle</option>
+                  <option value="sendt">Bare sendt</option>
+                  <option value="ikke_naadd">Bare ikke nådd</option>
+                </select>
+              </div>
+            </div>
+
+            <p class="ds-paragraph" data-size="sm" id="loggtelling" aria-live="polite"></p>
+            <div class="v-logg" id="logg"></div>
+          </section>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="sms-panel" aria-labelledby="sms-fane" hidden>
+        <section class="v-section">
+          <h2 class="ds-heading" data-size="sm">Varsel-SMS til én innbygger</h2>
+          <p class="ds-paragraph" data-variant="long">
+            En demo som viser hvordan kontakten med én innbygger kan bygges opp steg for
+            steg: fra en generell kunngjøring, via samtykke, til personlig innhold KI-en
+            skriver. Velg en demoperson og gå gjennom stegene i rekkefølge.
           </p>
-          <p class="ds-paragraph" data-size="sm" data-variant="long">
-            Det føres i revisjonsloggen på hver kjøring, også en tørrkjøring - den har
-            lest befolkningen like fullt.
+          <div class="ds-field">
+            <label class="ds-label" for="smsPerson">Demoperson</label>
+            <select class="ds-input" id="smsPerson">
+              <option value="">Velg…</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="v-section" id="smsVeiviser" hidden>
+          <div class="v-stegviser" id="smsStegviser" role="group" aria-label="Steg i sms-veiviseren"></div>
+          <p class="ds-paragraph" data-size="sm" id="smsStegtekst" aria-live="polite"></p>
+
+          <div id="smsSteg1" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Steg 1: en kunngjøring om at kommunen har en innbyggerportal. Samme melding
+              til alle, uten samtykke - dette er ikke et tilbud vurdert for henne, bare en
+              invitasjon til å sjekke ut portalen.
+            </p>
+            <div class="v-knapper">
+              <button class="ds-button" type="button" id="smsSteg1Send">Send SMS</button>
+              <span class="ds-spinner" id="smsSteg1Spinner" hidden aria-hidden="true" data-size="sm"></span>
+            </div>
+            <div id="smsSteg1Resultat"></div>
+          </div>
+
+          <div id="smsSteg2" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Steg 2: sperret bak samtykke. Samtykket gis på innbyggerportalen, på samme
+              sted som interessene - ikke her.
+            </p>
+            <div id="smsSteg2Gate"></div>
+          </div>
+
+          <div id="smsSteg3" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Steg 3: dette skjer allerede i dag, uten noe nytt her - meldes hun på en
+              aktivitet i innbyggerportalen, går det ut en bekreftelse, og en påminnelse
+              nærmere tidspunktet. Loggen under er filtrert til akkurat denne personen.
+            </p>
+            <div id="smsSteg3Logg"></div>
+          </div>
+
+          <div id="smsSteg4" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Steg 4: samme prinsipp som steg 2, men rammet inn som en oppfølging - noe
+              nytt har dukket opp for henne, ut fra det hun allerede har vist interesse
+              for eller meldt seg på.
+            </p>
+            <div id="smsSteg4Gate"></div>
+          </div>
+
+          <div class="v-knapper">
+            <button class="ds-button" data-variant="secondary" type="button" id="smsForrige">Forrige steg</button>
+            <button class="ds-button" type="button" id="smsNeste">Neste steg</button>
+          </div>
+        </section>
+      </div>
+
+      <div role="tabpanel" id="brev-panel" aria-labelledby="brev-fane" hidden>
+        <section class="v-section">
+          <h2 class="ds-heading" data-size="sm">Varsel-brev til én innbygger</h2>
+          <p class="ds-paragraph" data-variant="long">
+            For innbyggere uten en lovlig digital varselkanal - reservert, eller uten
+            kontaktopplysning i registeret. Samtykke er ikke et krav her: åpningsbrevet
+            går ut uansett, akkurat som et kommunalt informasjonsbrev i dag.
           </p>
-        </div>
-      </section>
+        </section>
 
-      <section class="v-section">
-        <h2 class="ds-heading" data-size="sm">Kjør jobben</h2>
-        <div class="v-knapper">
-          <button class="ds-button" type="button" data-variant="secondary" id="knappTorr">
-            Tørrkjør - vis hvem som ville fått varsel
-          </button>
-          <button class="ds-button" type="button" id="knappSend">Send varslene</button>
-          <span class="ds-spinner" id="spinner" hidden aria-hidden="true" data-size="sm"></span>
-        </div>
-        <div class="ds-alert" id="melding" hidden aria-live="polite"></div>
-        <div class="v-tall" id="tall" hidden></div>
-      </section>
+        <section class="v-section" id="brevVeiviser">
+          <div class="v-stegviser" id="brevStegviser" role="group" aria-label="Steg i brev-veiviseren"></div>
+          <p class="ds-paragraph" data-size="sm" id="brevStegtekst" aria-live="polite"></p>
 
-      <section class="v-section" id="utsendingerSeksjon" hidden>
-        <h2 class="ds-heading" data-size="sm">Hvem, og på hvilken kanal</h2>
-        <p class="ds-paragraph" data-size="sm" data-variant="long">
-          Kolonnen «brev» står ved siden av med vilje. Et varsel har ingen papirkanal -
-          en påminnelse i posten kommer etter turen - så en innbygger som er reservert
-          mot digital kommunikasjon får vedtaket sitt på papir og ingen melding.
-          De to kolonnene skal <em>ikke</em> stemme overens.
-        </p>
-        <div class="v-tabellramme">
-          <table class="ds-table" data-size="sm">
-            <caption class="ds-sr-only">Innbyggere som kvalifiserer, med kanal og begrunnelse</caption>
-            <thead>
-              <tr>
-                <th scope="col">Person</th>
-                <th scope="col">Status</th>
-                <th scope="col">Varselkanal</th>
-                <th scope="col">Hvorfor ikke</th>
-                <th scope="col">Brev ville gått på</th>
-              </tr>
-            </thead>
-            <tbody id="utsendinger"></tbody>
-          </table>
-        </div>
-      </section>
+          <div id="brevSteg1" class="v-section" hidden>
+            <div class="ds-field">
+              <label class="ds-label" for="brevPerson">Mottaker</label>
+              <select class="ds-input" id="brevPerson">
+                <option value="">Laster…</option>
+              </select>
+              <p class="ds-paragraph" data-size="xs" data-field="description">
+                Bare innbyggere uten en lovlig digital varselkanal vises.
+              </p>
+            </div>
+            <div class="v-knapper">
+              <button class="ds-button" type="button" id="brevLagUtkast">Lag utkast</button>
+              <span class="ds-spinner" id="brevUtkastSpinner" hidden aria-hidden="true" data-size="sm"></span>
+            </div>
+            <div id="brevUtkastResultat"></div>
+          </div>
 
-      <section class="v-section">
-        <h2 class="ds-heading" data-size="sm">Minn de påmeldte på et arrangement</h2>
-        <p class="ds-paragraph" data-size="sm" data-variant="long">
-          Går til dem som har meldt seg på i innbyggerportalen. Hjemmelen er en annen
-          enn for varselet over: her har innbyggeren selv bedt om tilbudet, og
-          påminnelsen er en del av det. <code>Simuler fra</code> lar deg late som tiden
-          nærmer seg uten å stille klokken.
-        </p>
-        <div class="v-filter">
-          <div class="ds-field">
-            <label class="ds-label" for="arrangement">Arrangement</label>
-            <select class="ds-input" id="arrangement">
-              <option value="">Laster…</option>
-            </select>
-            <p class="ds-paragraph" data-size="xs" data-field="description" id="arrangementhint">
-              Bare tilbud som har et tidspunkt å minne om.
+          <div id="brevSteg2" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Åpningsbrevet: forteller om innbyggerportalen og aktivitetene som ser ut til
+              å passe henne, basert på profilen hennes.
             </p>
+            <div id="brevSteg2Innhold"></div>
           </div>
-          <div class="ds-field">
-            <label class="ds-label" for="fraDato">Simuler fra</label>
-            <input class="ds-input" type="date" id="fraDato" />
-            <p class="ds-paragraph" data-size="xs" data-field="description">
-              Blank betyr i dag.
+
+          <div id="brevSteg3" class="v-section" hidden>
+            <p class="ds-paragraph" data-variant="long">
+              Oppfølgingsbrevet: forteller om aktivitetene hun allerede er med på, og om
+              nytt som har dukket opp for henne.
             </p>
+            <div id="brevSteg3Innhold"></div>
           </div>
-        </div>
-        <div class="v-knapper">
-          <button class="ds-button" type="button" data-variant="secondary" id="knappPaaminn">
-            Send påminnelse
-          </button>
-        </div>
-        <div class="ds-alert" id="paaminnelsemelding" hidden aria-live="polite"></div>
-      </section>
 
-      <section class="v-section" id="loggSeksjon" hidden>
-        <h2 class="ds-heading" data-size="sm">Logg over sendte varsler</h2>
-        <p class="ds-paragraph" data-size="sm" data-variant="long">
-          Hele historikken, ikke bare siste kjøring. Radene er ledgeren i
-          <code>state/utsendinger.json</code>, slått sammen med teksten fra
-          <code>GET /fiks/varsler</code> på <code>varselId</code>. Nyeste først.
-        </p>
-
-        <div class="v-filter">
-          <div class="ds-field">
-            <label class="ds-label" for="personfilter">Vis varsler til</label>
-            <select class="ds-input" id="personfilter">
-              <option value="">Alle mottakere</option>
-            </select>
-            <p class="ds-paragraph" data-size="xs" data-field="description" id="filterhint">
-              Bare innbyggere som står i loggen.
-            </p>
+          <div class="v-knapper">
+            <button class="ds-button" data-variant="secondary" type="button" id="brevForrige">Forrige steg</button>
+            <button class="ds-button" type="button" id="brevNeste">Neste steg</button>
           </div>
-          <div class="ds-field">
-            <label class="ds-label" for="utfallfilter">Utfall</label>
-            <select class="ds-input" id="utfallfilter">
-              <option value="">Alle</option>
-              <option value="sendt">Bare sendt</option>
-              <option value="ikke_naadd">Bare ikke nådd</option>
-            </select>
-          </div>
-        </div>
-
-        <p class="ds-paragraph" data-size="sm" id="loggtelling" aria-live="polite"></p>
-        <div class="v-logg" id="logg"></div>
-      </section>
+        </section>
+      </div>
     </main>
 
     <script src="/delt/felles.ts"></script>

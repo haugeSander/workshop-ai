@@ -57,16 +57,51 @@ export type Tidspunkt = {
   sesong?: { fraMaaned: number; tilMaaned: number };
 };
 
+/**
+ * Hva tilbudet koster. `type` er kommunens eget ord og laases ikke her, av samme
+ * grunn som `status`: katalogen har `gratis`, `betalingstjeneste`,
+ * `delvis-betaling` og `ukjent` i dag, og en ny verdi er deres opplysning og
+ * ikke vaar feil. Beloepsfeltene varierer med typen, saa alle er valgfrie.
+ */
+export type Pris = {
+  type: string;
+  beloepKr?: number;
+  kursBeloepKr?: number;
+  annetBeloepKr?: number;
+  beskrivelse?: string;
+};
+
+/** Et sted tilbudet gaar. Bare `navn` er paakrevd - resten oppgir kommunen naar den har det. */
+export type Sted = {
+  navn: string;
+  rolle?: string;
+  adresse?: string;
+  postnummer?: string;
+  poststed?: string;
+};
+
 export type Tilbud = {
   tilbudId: string;
   /** Peker inn i `tilbydere`. Oppslaget valideres. */
   tilbyderId: string;
+  /**
+   * Tilbudets eget navn, naar det heter noe annet enn aktiviteten - «DNT
+   * Ringerike Seniorgruppa» under aktiviteten «Turgruppe». Utelatt ellers, og da
+   * er aktivitetsnavnet det riktige aa vise.
+   */
+  navn?: string;
   status: string;
   gjennomforing: { former: string[]; tilrettelegging: string[] };
   /** Tomt naar tilbudet ikke har et fast ukentlig tidspunkt - et kurs, en veiledning. */
   tidspunkter: Tidspunkt[];
+  /** Utelatt naar kommunen ikke har oppgitt en pris. Se typen over. */
+  pris?: Pris;
+  /** Tomt naar stedet ikke er oppgitt. Flere naar tilbudet gaar rundt i kommunen. */
+  steder: Sted[];
   /** Utelatt naar det ikke kreves paamelding. */
   paamelding?: { kreves: boolean; kontakt: Record<string, unknown> };
+  /** Hvor innbyggeren henvender seg. Tom naar kommunen ikke har oppgitt noe. */
+  kontakt: Record<string, unknown>;
   /** Utelatt inntil kommunen leverer det. Se typen over. */
   tilgjengelighet?: Tilgjengelighet;
 };
@@ -130,6 +165,49 @@ function lesTilgjengelighet(raa: unknown, hvem: string): Tilgjengelighet | undef
     ut[felt] = t[felt] as boolean;
   }
   return ut;
+}
+
+/**
+ * Prisen, naar den staar der.
+ *
+ * `type` kreves fordi en pris uten den ikke sier noe; beloepene valideres som
+ * tall naar de er med. Katalogen har fire typer i dag og hver av dem sitt
+ * beloepsfelt, saa det er formen som sjekkes her og ikke kombinasjonen.
+ */
+function lesPris(raa: unknown, hvem: string): Pris | undefined {
+  if (raa === undefined || raa === null) return undefined;
+  krev(typeof raa === "object" && !Array.isArray(raa),
+    `${hvem} har en \`pris\` som ikke er et objekt.`);
+  const p = raa as Record<string, unknown>;
+  krev(tekst(p.type), `${hvem} har en \`pris\` uten \`type\`.`);
+  const ut: Pris = { type: String(p.type) };
+  for (const felt of ["beloepKr", "kursBeloepKr", "annetBeloepKr"] as const) {
+    if (p[felt] === undefined || p[felt] === null) continue;
+    krev(typeof p[felt] === "number" && Number.isFinite(p[felt]),
+      `${hvem} har \`pris.${felt}\` som ikke er et tall.`);
+    ut[felt] = p[felt] as number;
+  }
+  if (tekst(p.beskrivelse)) ut.beskrivelse = String(p.beskrivelse);
+  return ut;
+}
+
+/**
+ * Stedene tilbudet gaar. `navn` er det eneste kravet: en digital veiledning som
+ * reiser rundt til sju bygder oppgir sju navn og ingen adresse, og et
+ * aktivitetssenter oppgir ett navn med full adresse. Begge er riktige.
+ */
+function lesSteder(raa: unknown, hvem: string): Sted[] {
+  if (raa === undefined || raa === null) return [];
+  krev(Array.isArray(raa), `${hvem} har \`steder\` som ikke er en liste.`);
+  return (raa as unknown[]).map((rad, i) => {
+    const sted = (rad ?? {}) as Record<string, unknown>;
+    krev(tekst(sted.navn), `${hvem}, sted ${i + 1}: mangler \`navn\`.`);
+    const ut: Sted = { navn: String(sted.navn) };
+    for (const felt of ["rolle", "adresse", "postnummer", "poststed"] as const) {
+      if (tekst(sted[felt])) ut[felt] = String(sted[felt]);
+    }
+    return ut;
+  });
 }
 
 function lesTidspunkt(raa: unknown, hvem: string, i: number): Tidspunkt {
@@ -301,9 +379,12 @@ export function parseAktivitetskatalog(raa: unknown): Aktivitetskatalog {
           `${hvemTilbud} har en \`paamelding\` uten at \`kreves\` er true eller false.`);
       }
 
+      const pris = lesPris(t.pris, hvemTilbud);
+
       return {
         tilbudId: String(t.tilbudId),
         tilbyderId: String(t.tilbyderId),
+        ...(tekst(t.navn) ? { navn: String(t.navn) } : {}),
         status: String(t.status),
         gjennomforing: {
           former: (g.former as unknown[]).map(String),
@@ -311,10 +392,13 @@ export function parseAktivitetskatalog(raa: unknown): Aktivitetskatalog {
         },
         tidspunkter: ((t.tidspunkter ?? []) as unknown[])
           .map((x, n) => lesTidspunkt(x, hvemTilbud, n)),
+        ...(pris ? { pris } : {}),
+        steder: lesSteder(t.steder, hvemTilbud),
         ...(p ? { paamelding: {
           kreves: Boolean(p.kreves),
           kontakt: (p.kontakt ?? {}) as Record<string, unknown>
         } } : {}),
+        kontakt: (t.kontakt ?? {}) as Record<string, unknown>,
         ...(() => {
           const tg = lesTilgjengelighet(t.tilgjengelighet, hvemTilbud);
           return tg ? { tilgjengelighet: tg } : {};

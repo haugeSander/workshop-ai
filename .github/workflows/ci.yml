@@ -99,9 +99,43 @@ jobs:
       - name: Varselkanalen
         run: pnpm test:varsel
 
-      # Availability in the citizen portal is a deterministic age rule. The
-      # boundary cases also pin that today's date is interpreted in Norway.
-      - name: Innbyggerportalens aldersgrenser
+      # The one text in this sandbox a model writes for a citizen to read. The
+      # guardrails run on the answer, not only in the prompt: a made-up time or
+      # phone number sends a person to the wrong place, and the input is short
+      # enough that every digit not in it was invented. Pure functions - the
+      # model is never called here.
+      - name: Sperrene rundt begrunnelsene
+        run: pnpm test:begrunnelse
+
+      # The personal opening line in a seniorsirkel SMS. Same discipline as
+      # begrunnelse.ts, stricter in one place: the model never writes the link
+      # or the phone number, so any digit, link or email in its own sentence is
+      # invented and rejected outright, not measured against a known set. Pure
+      # functions - the model is never called here.
+      - name: Sperrene rundt personlig-sms
+        run: pnpm test:personlig-sms
+
+      # The personal paragraphs in a seniorsirkel letter. Same shape as
+      # personlig-sms: the model writes only the paragraphs, never the address
+      # block, date, bullet list or phone footer that brev.ts assembles from
+      # data. Pure functions - the model is never called here.
+      - name: Sperrene rundt personlig-brev
+        run: pnpm test:personlig-brev
+
+      # byggBrevinnhold and renderBrevPdf, pinned against a literal person
+      # fixture - including that a skjermet person's address never reaches the
+      # letter, because postadresseFor (kvittering.ts) already answers empty
+      # for one and brev.ts must not read bostedsadresse on its own. Pure
+      # functions and a PDF smoke check - no fetch, no state.
+      - name: Brevinnhold og PDF
+        run: pnpm test:brev
+
+      # The portal shows what rangerTilbud decided, not a simpler filter of its
+      # own beside it. It had one, and that one knew nothing about accessibility,
+      # reasons or exclusions - so the citizen got the weaker of two
+      # implementations while the strong one had no callers. Pure functions: the
+      # preferanse and the registreringer arrive as parameters.
+      - name: Innbyggerportalens sammenstilling
         run: pnpm test:innbyggerportal
 
       # Modulus 11 and Skatteetaten's +80 marker, as pure functions. The seed only
