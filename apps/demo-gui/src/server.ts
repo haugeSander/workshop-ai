@@ -41,6 +41,7 @@ const KLIENTFILER: Record<string, string> = {
   "utforsker.ts": KLIENTSKRIPT,
   "ds-eksempel.ts": KLIENTSKRIPT,
   "aktiviteter.ts": KLIENTSKRIPT,
+  "innbyggerportal-hjem.ts": KLIENTSKRIPT,
   "innbyggerportal.ts": KLIENTSKRIPT,
   "varsling.ts": KLIENTSKRIPT,
   "callback.ts": KLIENTSKRIPT
@@ -59,7 +60,8 @@ const sider: Record<string, string> = {
   "/agent.html": "agent.html",
   "/utforsker": "utforsker.html",
   "/aktiviteter": "aktiviteter.html",
-  "/innbyggerportal": "innbyggerportal.html",
+  "/innbyggerportal": "innbyggerportal-hjem.html",
+  "/innbyggerportal/aktiviteter": "innbyggerportal.html",
   "/varsling": "varsling.html",
   // Template for teams building their own frontend. See docs/designsystem.md.
   "/ds-eksempel": "ds-eksempel.html",
