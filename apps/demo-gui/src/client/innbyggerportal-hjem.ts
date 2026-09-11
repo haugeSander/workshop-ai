@@ -9,8 +9,9 @@ type Portalperson = Person & {
 type Portalrespons = {
   alder: number;
   portalTilgjengelig: boolean;
-  aktiviteter: unknown[];
-  andreAktiviteter: unknown[];
+  anbefalte: unknown[];
+  andre: unknown[];
+  utelukkede: unknown[];
   preferanserValgt: boolean;
 };
 
@@ -44,7 +45,7 @@ async function start(): Promise<void> {
     vaapen.hidden = false;
   }
 
-  const tilgjengelige = portal.aktiviteter.length + portal.andreAktiviteter.length;
+  const tilgjengelige = portal.anbefalte.length + portal.andre.length;
   krevEl("aktivitetsbeskrivelse").textContent = portal.portalTilgjengelig
     ? portal.preferanserValgt
       ? "Se anbefalte aktiviteter, resten av tilbudene og påmeldingene dine."
