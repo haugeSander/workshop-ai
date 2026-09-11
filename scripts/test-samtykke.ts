@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 
 import { getInnbyggerToken, maskinportenHeader } from "../apps/digdir-mock/src/client.ts";
 import { hasGyldigSamtykke, hasUtloeptSamtykke } from "../apps/sandbox-backend/src/regler.ts";
+import { SENIORSIRKEL_KONTAKT_FORMAAL } from "../apps/sandbox-backend/src/seniorsirkelsamtykke.ts";
 import {
   SAMTYKKESTATUSER,
   effektivStatus,
@@ -242,6 +243,29 @@ check(
 check(
   "et trukket samtykke er ikke et utløpt samtykke",
   hasUtloeptSamtykke({ samtykker: [{ ...gyldigRad, status: "TRUKKET" }] }, "person-001", "inntekt", TEST_NOW) === false
+);
+
+/*
+ * Formålsbegrensning: et samtykke til personlig kontakt om seniortilbud
+ * (seniorsirkelsamtykke.ts) har `dataKilder: []` med vilje, nettopp så det
+ * aldri kan hjemle en annen prosess sin lesning av en datakilde. Uten dette
+ * ville en innbygger som sa ja til en SMS om seniortilbud, samtidig - og uten
+ * å vite det - ha samtykket til at en helt annen prosess leste kontaktinfoen
+ * hennes.
+ */
+const seniorsirkelKontaktRad = {
+  samtykkeId: "samtykke-seniorsirkel-kontakt",
+  personId: "person-001",
+  status: "SAMTYKKET",
+  formaal: SENIORSIRKEL_KONTAKT_FORMAAL,
+  dataKilder: [] as string[],
+  opprettet: "2026-08-13T10:00:00.000Z",
+  utloper: iTida(30)
+};
+check(
+  "et samtykke til personlig kontakt om seniortilbud hjemler ikke lesning av kontaktinfo",
+  hasGyldigSamtykke({ samtykker: [seniorsirkelKontaktRad] }, "person-001", "kontaktinfo", undefined, TEST_NOW)
+    === null
 );
 
 // --- 5. oppgavens maskin ---------------------------------------------------
