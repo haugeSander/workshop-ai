@@ -248,6 +248,241 @@ paths:
       responses:
         "200":
           description: Risikovurdering returnert
+  /ai/begrunn-tilbud:
+    post:
+      summary: Skriv én setning per seniortilbud om hvorfor det er foreslått
+      description: >-
+        Modellen formulerer, den rangerer ikke og avgjør ingenting. Skåringen i
+        sandbox-backend har alt bestemt hvilke tilbud som er med og hvorfor, og
+        «hvorfor» er en liste begrunnelseskoder. Endepunktet gjør kodene om til
+        én setning per tilbud, med ett modellkall per tilbud i parallell, slik at
+        en setning som feiler ikke koster de andre.
+
+
+        Sperrene kjøres i kode etter modellkallet, ikke bare i prompten: et svar
+        som er lengre enn 240 tegn, oppgir en sifferrekke som ikke står i
+        grunnlaget, oppgir en nettadresse eller e-post, eller bruker
+        beslutningsspråk, byttes ut med den deterministiske setningen. Da får
+        raden `kilde: regel`, og `advarsel` sier hvilken rad som ble forkastet og
+        hvorfor.
+
+
+        Tallregelen er strengere enn den på `/ai/sporsmaal`: der måles bare beløp
+        i et stort grunnlag, her er inndataene korte og kjente, så hver sifferrekke
+        som ikke står i dem er funnet på. Det farligste modellen kan finne på her
+        er nettopp et lite tall - «tirsdager klokken 14» sender et menneske til
+        feil sted til feil tid.
+
+
+        Er provideren `mock` eller nede, svarer hele endepunktet med regelens
+        setninger. De er skrevet for å kunne stå alene.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kontekst]
+              properties:
+                sporingsId: { type: string }
+                sprak:
+                  type: string
+                  default: nb
+                kontekst:
+                  type: object
+                  required: [tilbud]
+                  properties:
+                    tilbud:
+                      type: array
+                      maxItems: 6
+                      description: >-
+                        Rader utover de seks første ignoreres. En innbygger venter
+                        på siden, og seks modellkall er grensen for hva det er
+                        rimelig å la henne vente på.
+                      items:
+                        type: object
+                        required: [tilbudId, navn, begrunnelseskoder]
+                        properties:
+                          tilbudId: { type: string }
+                          navn: { type: string }
+                          beskrivelse: { type: string }
+                          begrunnelseskoder:
+                            type: array
+                            description: >-
+                              Ukjente verdier slippes framfor å gi 400: en kode
+                              gatewayen ikke kjenner er en tjeneste som er nyere
+                              enn den.
+                            items:
+                              $ref: "#/components/schemas/Begrunnelseskode"
+      responses:
+        "200":
+          description: Én begrunnelse per tilbud
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [begrunnelser]
+                properties:
+                  begrunnelser:
+                    type: array
+                    items:
+                      type: object
+                      required: [tilbudId, tekst, kilde]
+                      properties:
+                        tilbudId: { type: string }
+                        tekst: { type: string }
+                        kilde:
+                          type: string
+                          description: >-
+                            `modell` når setningen kom fra modellen og besto
+                            sperrene, `regel` når den deterministiske ble brukt.
+                          enum: [modell, regel]
+                  modell: { type: string }
+                  sprak: { type: string }
+                  syntetisk: { type: boolean, const: true }
+                  advarsel:
+                    type: string
+                    description: Satt når et modellkall feilet eller et svar ble forkastet.
+
+  /ai/personlig-sms:
+    post:
+      summary: Skriv den personlige åpningssetningen i en seniorsirkel-SMS
+      description: >-
+        Modellen skriver bare åpningssetningen - aldri lenken eller
+        telefonnummeret, som koden limer inn etterpå i en fast hale. Strengere
+        sperre enn /ai/begrunn-tilbud: her finnes ingen legitime tall eller
+        lenker i det hele tatt, så ethvert siffer, enhver lenke eller e-post i
+        svaret forkaster det, framfor å måle mot et kjent sett.
+
+        `ramme` avgjør hvilken SMS dette er: `kunngjoring` (ingen kjente
+        interesser ennå), `tilbud-forstegang` (rett etter samtykke) eller
+        `tilbud-oppfolging` (hun kjenner portalen fra før).
+
+        Er provideren `mock` eller nede, eller svaret forkastet, svarer
+        endepunktet med en deterministisk tekst som kan stå alene.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kontekst]
+              properties:
+                sporingsId: { type: string }
+                sprak:
+                  type: string
+                  default: nb
+                kontekst:
+                  type: object
+                  required: [ramme, fornavn, kommunenavn, lenke, telefon]
+                  properties:
+                    ramme:
+                      type: string
+                      enum: [kunngjoring, tilbud-forstegang, tilbud-oppfolging]
+                    fornavn: { type: string }
+                    kommunenavn: { type: string }
+                    lenke: { type: string }
+                    telefon: { type: string }
+                    forslag:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          navn: { type: string }
+      responses:
+        "200":
+          description: SMS-teksten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tekst: { type: string }
+                  kilde:
+                    type: string
+                    enum: [modell, regel]
+                  modell: { type: string }
+                  sprak: { type: string }
+                  syntetisk: { type: boolean, const: true }
+                  advarsel:
+                    type: string
+                    description: Satt når inngangen manglet, et modellkall feilet, eller svaret ble forkastet.
+
+  /ai/personlig-brev:
+    post:
+      summary: Skriv de personlige avsnittene i et seniorsirkel-brev
+      description: >-
+        Modellen skriver bare avsnittene - aldri adresseblokken, datoen,
+        punktlisten over aktivitetskategorier eller telefonfoten, som settes
+        sammen av kode i apps/sandbox-backend/src/brev.ts. Samme strenge
+        tallregel som /ai/personlig-sms.
+
+        `brevtype: aapning` er det første brevet; `oppfolging` forutsetter at
+        åpningsbrevet alt er sendt.
+
+        Er provideren `mock` eller nede, eller svaret forkastet, svarer
+        endepunktet med deterministiske avsnitt som kan stå alene.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kontekst]
+              properties:
+                sporingsId: { type: string }
+                sprak:
+                  type: string
+                  default: nb
+                kontekst:
+                  type: object
+                  required: [brevtype, fornavn, kommunenavn, telefon]
+                  properties:
+                    brevtype:
+                      type: string
+                      enum: [aapning, oppfolging]
+                    fornavn: { type: string }
+                    kommunenavn: { type: string }
+                    telefon: { type: string }
+                    forslag:
+                      type: array
+                      description: Brukt når brevtype er aapning.
+                      items:
+                        type: object
+                        properties:
+                          navn: { type: string }
+                          kategori: { type: string }
+                    hendelser:
+                      type: array
+                      description: Brukt når brevtype er oppfolging.
+                      items:
+                        type: object
+                        properties:
+                          navn: { type: string }
+                          grunnlag:
+                            type: string
+                            enum: [paameldt, tilbud-nytt]
+      responses:
+        "200":
+          description: Brevavsnittene
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avsnitt:
+                    type: array
+                    items: { type: string }
+                  kilde:
+                    type: string
+                    enum: [modell, regel]
+                  modell: { type: string }
+                  sprak: { type: string }
+                  syntetisk: { type: boolean, const: true }
+                  advarsel:
+                    type: string
+                    description: Satt når inngangen manglet, et modellkall feilet, eller svaret ble forkastet.
+
   /ai/sporsmaal:
     post:
       summary: Svar på et fritt spørsmål fra innbygger, midt i en prosessflyt
@@ -385,6 +620,16 @@ paths:
 
 components:
   schemas:
+    Begrunnelseskode:
+      type: string
+      description: >-
+        Hvorfor et seniortilbud skårer som det gjør. Kodeverket eies av
+        apps/shared/begrunnelse.ts, fordi både sandbox-backend og ai-gateway
+        leser det - se den samme enumen i openapi/sandbox-backend.yaml.
+      enum: [treffer_interesse, utenfor_interessene, i_maalgruppen, gjelder_alle,
+        utenfor_maalgruppen, maalgruppe_ukjent, rullestoladkomst, rullestol_ikke_oppgitt,
+        mangler_rullestoladkomst, teleslynge, teleslynge_mangler, teleslynge_ikke_oppgitt,
+        utenfor_kommunen]
     AdminStatus:
       type: object
       required: [provider, providers, modellNaaBar]

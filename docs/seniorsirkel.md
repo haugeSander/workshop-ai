@@ -223,8 +223,8 @@ kunne oppgi kommunen sin selv, hadde gjort det harde kravet til en innstilling.
 | `grupper` | Kommaliste av gruppeverdier. En ukjent verdi gir 400, ikke et tomt svar |
 | `rullestol`, `teleslynge` | `true`/`false`. **Utelatt er den tredje tilstanden** |
 
-Portalen kaller ruten med spørreparametere; prosessmotoren kaller den med en økt bak
-seg og kan la svarene komme derfra. De to leses av den samme funksjonen -
+En kaller oppgir gruppene som spørreparametere; prosessmotoren kaller ruten med en
+økt bak seg og kan la svarene komme derfra. De to leses av den samme funksjonen -
 `byggProfilFraKilder` - framfor av to som skal oppføre seg likt, og spørringen vinner
 der begge svarer. Fra økten er det **feltnavnet** som teller og ikke steg-id-en: et
 steg som heter `interesser` duger, og det gjør også et felt som heter `interesser`
@@ -234,6 +234,98 @@ Et `ja-nei`-felt har tre verdier, og «Vet ikke» blir til ikke oppgitt - samme 
 som katalogen følger. Peker et `DATA_FETCH`-steg på et spørsmål som ikke er besvart,
 står plassholderen igjen i URL-en; ruten sier da at steget ikke er besvart, framfor å
 lese `{svar.interesser}` som et gruppenavn og skylde på innbyggeren.
+
+## Innbyggerportalen er den andre inngangen
+
+`/innbyggerportal` i `demo-gui` skårer ikke selv. `byggPortalvisning` i
+`apps/sandbox-backend/src/innbyggerportal.ts` kaller `rangerTilbud` direkte og
+legger på det katalogen har av tid, sted, pris, kontakt og påmelding - det
+rangeringen med vilje ikke bærer, fordi en skåring som også leverte visningsfelter
+hadde vært et presentasjonslag og ikke lenger kunnet pinnes mot en fixtur.
+
+Portalen hadde sin egen filtrering fram til dette, ved siden av rangeringen og
+enklere enn den: ingen tilgjengelighet, ingen begrunnelse, ingen utelukkede.
+Innbyggeren fikk altså den svakeste av to implementasjoner, mens den sterke ikke
+hadde en eneste bruker utenfor kontrakttesten. `pnpm test:innbyggerportal` pinner
+koblingen, og kjører uten stack og uten modell.
+
+Tre ting skiller portalen fra ruten, og alle tre er med vilje:
+
+| | Ruten `/api/seniorsirkel/forslag` | Portalen |
+|---|---|---|
+| Interessene | spørring eller økt | innbyggerens lagrede preferanse |
+| Referansedato | `satser.gjelderFra` | dagens dato i norsk tid |
+| Svaret | `forslag` og `utelukkede` | `anbefalte`, `andre` og `utelukkede`, beriket |
+
+Datoen er den som er verdt en setning. Ruten måler mot `satser.gjelderFra` fordi den
+kan være et `DATA_FETCH`-mål i en prosess som ender i et vedtak, og da skal
+katalogens målgrupper og vilkåret svare for samme dag. Portalen spør om noe annet -
+«hva finnes for meg nå» - og må bruke én dato til begge deler: en aldersgrense målt
+mot i dag og en målgruppe målt mot en dato i fortiden ville sagt til en nybakt
+62-åring at hun er innenfor, og så at hun står utenfor hver eneste målgruppe.
+
+Aldersgrensen selv står ikke i koden. Den leses av `malgruppeFraAar` på ordningens
+tilbud i `data/tjenestetilbud.json` - det samme tallet vilkåret måler mot. Det stod
+som en konstant i portalen før, ved siden av det samme tallet i dataene, og to tall
+for én grense er ett for mange.
+
+**Interessegruppene er det portalen spør om, ikke kategoriene.** Det er den samme
+regelen som over, og portalen brøt den: den la kommunens tjenestetaksonomi rett i
+avkrysningsboksene, så en innbygger ble bedt om å velge mellom
+`friluftsliv-og-trening` og `bolig-og-hverdagsmestring`. `tilgjengeligeGrupper`
+bærer nå `verdi` og `label`, og kategoriene gruppene peker på blir ikke med ut.
+
+## Setningen modellen skriver
+
+Skåringen svarer med koder. `POST /ai/begrunn-tilbud` gjør kodene om til én setning
+per tilbud. Innbyggerportalen viser den ikke lenger - kortet leder i stedet med
+grunnene selv, som ikon- og tekstrader bygget direkte av `begrunnelseskoder`, fordi
+en setning som bare får lov til å si det samme som kodene uansett blir generisk, og
+grunnene i seg selv er tydeligere å lese enn en setning som omskriver dem. Ruten
+finnes fortsatt og virker som beskrevet under - andre forbrukere av
+begrunnelseskodene kan bruke den.
+
+**Modellen får kodene, ikke katalogen.** Prompten har navnet, beskrivelsen og
+meningen bak hver kode som traff - ingen tid, intet sted, ingen pris og intet
+telefonnummer. Den kan altså ikke bomme på dem, fordi den ikke har dem. De står på
+kortet ved siden av, hentet fra data.
+
+**Sperrene kjører på svaret, ikke bare i prompten.** De ligger i
+`apps/ai-gateway/src/tilbudsbegrunnelse.ts`, og et svar som ryker byttes mot den
+deterministiske setningen:
+
+| Sperre | Hvorfor |
+|---|---|
+| Høyst 240 tegn | Over det har modellen sluttet å svare på spørsmålet |
+| Ingen sifferrekke som ikke står i inndataene | Et oppfunnet klokkeslett sender et menneske til feil sted til feil tid |
+| Ingen nettadresse eller e-post | En kontaktopplysning modellen fant på ser ut som noe å ringe |
+| Ikke beslutningsspråk | `ai-no-decisions`. Samme liste som `/ai/sporsmaal` bruker, eksportert framfor kopiert |
+
+Tallregelen er strengere enn `findUngroundedNumbers` i `sporsmaalsperrer.ts`, som
+bare måler beløp og slipper igjennom alt under tusen. Her er inndataene korte og
+kjente, så hver sifferrekke som ikke står i dem er funnet på - og det farligste
+modellen kan finne på her er nettopp et lite tall.
+
+**Den deterministiske setningen er ikke en nødløsning.** Den er teksten innbyggeren
+får når `AI_PROVIDER=mock`, når modellen er nede, og hver gang et svar ryker på en
+sperre: «Tilbudet passer med interessene du har valgt, er rettet mot din
+aldersgruppe og har ikke rullestoladkomst.» Den skal kunne stå alene, og gjør det i
+CI, der ingen modell kjører.
+
+Ett modellkall per tilbud, i parallell, høyst seks. Da feiler de hver for seg - en
+setning som ryker koster ikke de fem andre - og hvert kall får sin egen linje i
+KI-sporet på `GET /trace`, der man ser hva modellen faktisk fikk.
+
+`pnpm test:begrunnelse` pinner sperrene uten modell og kjører i CI.
+`evals/tilbudsbegrunnelse.json` måler prompten, og trenger en modell: en rad som
+kommer tilbake med `kilde: regel` er en modell som bommet, og en modell som bommer
+ofte er en prompt som må skrives om.
+
+**De utelukkede vises.** En innbygger som har oppgitt at hun bruker rullestol får se
+turgruppen hun ikke kommer inn på, med tid, sted og telefonnummer, framfor at den
+forsvinner uten spor. Det er ikke en påmeldingsknapp: `POST .../registreringer`
+måler mot den samme skåringen, så et tilbud et hardt krav stengte kan ikke bli en
+påmelding ved å kalle ruten direkte.
 
 `pnpm test:kontrakt` treffer ruten seks ganger, blant annet med en innbyggers token
 mot en annens profil - det er egne-data-vakten, og ingenting annet pinner den.

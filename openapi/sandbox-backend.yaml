@@ -418,7 +418,11 @@ paths:
         - maskinporten: [ks:innbyggerdialog:les]
       description: >
         Midlertidig placeholder. En respons med ferdigstilt satt til false betyr
-        at innbyggeren må velge kategorier før anbefalingene kan vises.
+        at innbyggeren må velge interessegrupper før anbefalingene kan vises.
+        Gruppene står i data/seniorsirkel-grupper.json og er ikke kommunens
+        tjenestekategorier - se docs/seniorsirkel.md, «To lister, og hvorfor de
+        ikke er like». rullestol og teleslynge har tre tilstander: true, false og
+        utelatt, som betyr ikke oppgitt.
       parameters:
         - name: personId
           in: query
@@ -427,7 +431,7 @@ paths:
           schema: { type: string }
       responses:
         "200":
-          description: Lagrede interesser og kategoriene som kan velges
+          description: Lagrede interesser og gruppene som kan velges
           content:
             application/json:
               schema:
@@ -445,16 +449,25 @@ paths:
           application/json:
             schema:
               type: object
-              required: [kategorier]
+              required: [grupper]
               properties:
                 personId:
                   type: string
                   description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
-                kategorier:
+                grupper:
                   type: array
                   minItems: 1
                   uniqueItems: true
+                  description: >
+                    Verdier fra data/seniorsirkel-grupper.json. En ukjent verdi gir
+                    400, ikke et tomt svar.
                   items: { type: string }
+                rullestol:
+                  type: boolean
+                  description: Utelat feltet når innbyggeren ikke har svart. Utelatt er ikke false.
+                teleslynge:
+                  type: boolean
+                  description: Utelat feltet når innbyggeren ikke har svart. Utelatt er ikke false.
       responses:
         "200":
           description: Oppdaterte interesser
@@ -469,16 +482,19 @@ paths:
 
   /api/innbyggerportal/placeholder/tilbud:
     get:
-      summary: Hent mockkatalogen for senioraktiviteter
+      summary: Hent seniortilbudene, rangert for innbyggeren
       security:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
       description: >
-        Midlertidig placeholder. Returnerer senioraktiviteter i formen fra
-        aktivitetskatalogen når den syntetiske personen er minst 62 år og bor i
-        katalogens kommune. Aktivitetene avgrenses til kategoriene innbyggeren har
-        valgt. Uten lagrede preferanser er listen tom. Varslingen gir ingen tilgang
-        eller portaltilstand.
+        Midlertidig placeholder. Samme skåring som GET /api/seniorsirkel/forslag -
+        rangerTilbud i seniorsirkel.ts - satt sammen med det katalogen har av tid,
+        sted, pris og påmelding. Svarer når den syntetiske personen er minst så
+        gammel som ordningen krever i data/tjenestetilbud.json og bor i katalogens
+        kommune. anbefalte er tilbudene som traff en interesse hun valgte, andre er
+        resten hun kan møte på, og utelukkede er de et hardt krav stengte - de blir
+        stående, med koden som sier hvorfor. Alderen måles mot dagens dato i norsk
+        tid, ikke mot satser.gjelderFra: portalen svarer på hva som finnes nå.
       parameters:
         - name: personId
           in: query
@@ -488,11 +504,11 @@ paths:
         - name: tilbudId
           in: query
           required: false
-          description: Tilbud valgt i den offentlige katalogen, returnert separat når det er tilgjengelig for innbyggeren.
+          description: Tilbud valgt i den offentlige katalogen, returnert separat i valgtTilbud.
           schema: { type: string }
       responses:
         "200":
-          description: Portalstatus og relevante tilbud
+          description: Portalstatus og de rangerte tilbudene
           content:
             application/json:
               schema:
@@ -500,15 +516,107 @@ paths:
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
 
-  /api/innbyggerportal/placeholder/samtykke:
-    post:
-      summary: Opprett en mockforespørsel om samtykke
+  /api/innbyggerportal/placeholder/begrunnelser:
+    get:
+      summary: Én setning per tilbud om hvorfor det er foreslått, skrevet av modellen
       security:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
       description: >
-        Midlertidig placeholder. Returnerer en syntetisk samtykkeforespørsel uten
-        å kontakte Fiks-simulatoren eller skrive tilstand.
+        Midlertidig placeholder. Egen rute og ikke en del av /tilbud, fordi de to
+        har hver sin hastighet: kortene er skåringens svar og skal stå med én
+        gang, mens setningen er et modellkall. Portalen tegner listen først og
+        fyller inn setningene når de kommer.
+
+
+        Begrunnelseskodene bygges her og ikke av kalleren: ruten kjører skåringen
+        på nytt og sender modellen det den kom fram til. En klient som kunne oppgi
+        kodene selv, kunne fått modellen til å skrive hva som helst om et tilbud,
+        og det ville stått som kommunens tekst.
+
+
+        Beste forsøk. Er KI-gatewayen nede, er svaret en tom liste og en
+        `advarsel` framfor en 502 - portalen har alt vist kortene. Svarer
+        gatewayen, men uten modell, er hver rad `kilde: regel`.
+      parameters:
+        - name: personId
+          in: query
+          required: false
+          description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+        - name: sporingsId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Begrunnelsene, eller en tom liste med advarsel
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [begrunnelser, mock, syntetisk]
+                properties:
+                  begrunnelser:
+                    type: array
+                    items:
+                      type: object
+                      required: [tilbudId, tekst, kilde]
+                      properties:
+                        tilbudId: { type: string }
+                        tekst: { type: string }
+                        kilde:
+                          type: string
+                          enum: [modell, regel]
+                  modell: { type: string }
+                  sprak: { type: string }
+                  sporingsId: { type: string }
+                  advarsel: { type: string }
+                  mock: { type: boolean, const: true }
+                  syntetisk: { type: boolean, const: true }
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+
+  /api/innbyggerportal/placeholder/samtykke:
+    get:
+      summary: Det gjeldende samtykket til personlig kontakt om seniortilbud
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Ikke lenger en placeholder: svarer med det Fiks-simulatoren faktisk har
+        lagret for formålet i seniorsirkelsamtykke.ts, med utløp lagt på. `null`
+        når hun aldri har blitt spurt.
+      parameters:
+        - name: personId
+          in: query
+          required: false
+          description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Samtykket, eller null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  samtykke: { type: object, nullable: true }
+                  mock: { type: boolean, const: true }
+                  syntetisk: { type: boolean, const: true }
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+    post:
+      summary: Be om samtykke til personlig kontakt om seniortilbud
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Oppretter en ekte samtykkerad hos Fiks-simulatoren, med `dataKilder: []`
+        og et eget formål utenfor DATAKILDER-listen - se seniorsirkelsamtykke.ts
+        for hvorfor: dette er samtykke til å bli kontaktet, ikke til at noen leser
+        en datakilde, og de to må ikke kunne forveksles i en annen prosess sin
+        samtykkesjekk.
       requestBody:
         required: false
         content:
@@ -527,13 +635,19 @@ paths:
               schema: { type: object }
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
 
   /api/innbyggerportal/placeholder/samtykke/{samtykkeId}/svar:
     put:
-      summary: Svar på en mockforespørsel om samtykke
+      summary: Svar på forespørselen om samtykke til personlig kontakt
       security:
         - idporten: []
         - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Går nå gjennom den ekte tilstandsmaskinen i apps/shared/samtykke.ts. Et
+        svar på et samtykke som allerede er avgjort - eller trukket, eller
+        utløpt - kommer nå tilbake som 409, ikke som et stille «ok».
       parameters:
         - name: samtykkeId
           in: path
@@ -560,6 +674,56 @@ paths:
               schema: { type: object }
         "404":
           $ref: "#/components/responses/IkkeFunnet"
+        "409":
+          description: Ugyldig overgang - samtykket er allerede avgjort, trukket eller utløpt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/innbyggerportal/placeholder/samtykke/{samtykkeId}/trekk:
+    put:
+      summary: Trekk tilbake et samtykke som er gitt
+      security:
+        - idporten: []
+        - maskinporten: [ks:innbyggerdialog:les]
+      description: >
+        Egen rute og ikke en tredje statusverdi på .../svar: SAMTYKKEOVERGANGER i
+        apps/shared/samtykke.ts tillater bare SAMTYKKET -> TRUKKET, aldri
+        VENTER_PAA_SVAR -> TRUKKET, og de to er derfor ikke samme handling.
+      parameters:
+        - name: samtykkeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personId:
+                  type: string
+                  description: Påkrevd for maskinkall, ignoreres for innbyggerkall.
+      responses:
+        "200":
+          description: Samtykket, nå trukket
+          content:
+            application/json:
+              schema: { type: object }
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
+        "409":
+          description: Ugyldig overgang - samtykket er ikke i en tilstand som kan trekkes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
 
   /api/innbyggerportal/placeholder/kontaktinfo:
     get:
@@ -1427,6 +1591,12 @@ paths:
         trenger en hjemmel, og den føres hver gang den skjer. Å åpne en statusside
         er ikke den behandlingen. Vil du ha kandidatlisten, kall
         `kjor?torrkjor=true` - den logger, som den skal.
+      parameters:
+        - name: personId
+          in: query
+          required: false
+          description: Filtrer til én person - brukt av varsel-SMS-veiviseren for å vise hva som er sendt til henne.
+          schema: { type: string }
       responses:
         "200":
           description: Ledgeren, nyeste først
@@ -1628,6 +1798,355 @@ paths:
                 $ref: "#/components/schemas/Feil"
         "502":
           $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/kanal/{personId}:
+    get:
+      summary: Kanalen ett varsel ville gått på for denne personen, uten å sende noe
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Samme avgjørelse som POST /fiks/varsler ellers gjør som en bivirkning av
+        å sende - denne spør uten den bivirkningen. `kanBrev` sier om personen
+        hører til brevsporet: ingen digital varselkanal, og en postadresse
+        SvarUt faktisk kan bruke.
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Kanalen og om personen hører til brevsporet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId: { type: string }
+                  kanal:
+                    $ref: "#/components/schemas/Varselkanal"
+                  grunn:
+                    $ref: "#/components/schemas/Varselgrunn"
+                  kanBrev: { type: boolean }
+                  syntetisk: { type: boolean }
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/sms/kunngjoring:
+    post:
+      summary: "Steg 1 i varsel-SMS: en kunngjøring om innbyggerportalen"
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Ingen samtykkeport her - en kunngjøring om at portalen finnes er ikke et
+        tilbud vurdert for henne. Teksten er KI-generert, personlig i tonen, men
+        med samme innhold for alle. Sendes under VARSELHJEMMEL, samme grunnlag
+        som batchvarslingen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId]
+              properties:
+                personId: { type: string }
+      responses:
+        "200":
+          description: SMS-en, sendt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId: { type: string }
+                  tekst:
+                    type: string
+                    description: Bare med når meldingen faktisk ble sendt nå - se alleredeSendt.
+                  kilde: { type: string, enum: [modell, regel] }
+                  advarsel: { type: string }
+                  utsending:
+                    $ref: "#/components/schemas/Utsending"
+                  alleredeSendt:
+                    type: boolean
+                    description: >-
+                      `true` når dette steget alt var gjort for personen - da er
+                      utsending den eksisterende raden, og tekst/kilde er utelatt,
+                      siden den nettopp genererte teksten ikke nødvendigvis er den
+                      som faktisk gikk ut.
+                  sporingsId: { type: string }
+                  syntetisk: { type: boolean }
+        "400":
+          description: personId mangler eller finnes ikke
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/sms/tilbud:
+    post:
+      summary: "Steg 2 og 4 i varsel-SMS: en personlig SMS om tilbud som passer henne"
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Sperret bak samtykke: svarer 403 uten et gjeldende SAMTYKKET-samtykke for
+        formålet i seniorsirkelsamtykke.ts. Rangerer tilbudene på nytt med
+        rangerTilbud - klienten kan ikke oppgi hvilke tilbud teksten skal nevne.
+        Sendes under et eget grunnlag, SENIORSIRKEL_KONTAKT_HJEMMEL, fordi hun nå
+        er spurt og har svart ja.
+
+        `ramme: "forstegang"` er steg 2, rett etter samtykket; `"oppfolging"` er
+        steg 4, og forutsetter at steg 2 alt er kjørt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId]
+              properties:
+                personId: { type: string }
+                ramme:
+                  type: string
+                  enum: [forstegang, oppfolging]
+                  default: forstegang
+      responses:
+        "200":
+          description: SMS-en, sendt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId: { type: string }
+                  tekst:
+                    type: string
+                    description: Bare med når meldingen faktisk ble sendt nå - se alleredeSendt.
+                  kilde: { type: string, enum: [modell, regel] }
+                  advarsel: { type: string }
+                  utsending:
+                    $ref: "#/components/schemas/Utsending"
+                  alleredeSendt:
+                    type: boolean
+                    description: >-
+                      `true` når dette steget alt var gjort for personen - da er
+                      utsending den eksisterende raden, og tekst/kilde er utelatt,
+                      siden den nettopp genererte teksten ikke nødvendigvis er den
+                      som faktisk gikk ut.
+                  sporingsId: { type: string }
+                  syntetisk: { type: boolean }
+        "400":
+          description: personId mangler eller finnes ikke
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope, eller intet gjeldende samtykke
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/brev/utkast:
+    post:
+      summary: "Steg 1 i varsel-brev: velg mottaker, generer utkastet"
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Verken sender eller skriver noe - bare avsnittene KI-en foreslo. Svarer
+        400 for en person som ikke hører til brevsporet (se GET
+        .../kanal/{personId}): brevet er bare for dem uten en lovlig digital
+        varselkanal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId, brevtype]
+              properties:
+                personId: { type: string }
+                brevtype:
+                  $ref: "#/components/schemas/Brevtype"
+      responses:
+        "200":
+          description: Utkastet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId: { type: string }
+                  brevtype:
+                    $ref: "#/components/schemas/Brevtype"
+                  avsnitt:
+                    type: array
+                    items: { type: string }
+                  kilde: { type: string, enum: [modell, regel] }
+                  advarsel: { type: string }
+                  sporingsId: { type: string }
+                  syntetisk: { type: boolean }
+        "400":
+          description: Ukjent personId eller brevtype, eller personen hører ikke til brevsporet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/brev:
+    post:
+      summary: "Steg 2 og 3 i varsel-brev: send brevet"
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Bygger PDF-en av avsnittene fra .../brev/utkast, sender den på SvarUt (se
+        svarut.ts og forsendelse.ts i fiks-simulator), og fører en rad i
+        state/seniorsirkel-brev.json. Klemmer nøkkelen `brevtype:personId` fast
+        før sending - et andre kall med samme nøkkel svarer 409, ikke et nytt
+        brev.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId, brevtype, avsnitt]
+              properties:
+                personId: { type: string }
+                brevtype:
+                  $ref: "#/components/schemas/Brevtype"
+                avsnitt:
+                  type: array
+                  items: { type: string }
+                kilde: { type: string, enum: [modell, regel] }
+      responses:
+        "200":
+          description: Brevet, sendt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId: { type: string }
+                  brevtype:
+                    $ref: "#/components/schemas/Brevtype"
+                  status: { type: string, enum: [sendt, feilet] }
+                  forsendelseId: { type: string }
+                  syntetisk: { type: boolean }
+        "400":
+          description: personId, brevtype eller avsnitt mangler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          description: Mangler hjemmel eller scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "409":
+          description: Dette brevet er allerede sendt til denne personen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "502":
+          $ref: "#/components/responses/OppstroemsFeil"
+
+  /api/varsel/seniorsirkel/brev/{brevtype}/{personId}:
+    get:
+      summary: Statusen på ett sendt brev
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        Ledgerraden, med den løpende statusen fra readForsendelsesstatus lagt på
+        når brevet har en forsendelseId.
+      parameters:
+        - name: brevtype
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Brevtype"
+        - name: personId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Brevraden
+          content:
+            application/json:
+              schema: { type: object }
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
+
+  /api/varsel/seniorsirkel/brev/{brevtype}/{personId}/pdf:
+    get:
+      summary: PDF-en, tegnet på nytt fra det som faktisk ble sendt
+      security:
+        - maskinporten: [ks:innbyggerdialog:varsling]
+      description: >
+        PDF-bytene lagres aldri. Denne ruten tegner brevet på nytt hver gang, av
+        avsnittene i state/seniorsirkel-brev.json - aldri av en ny modellkjøring
+        - så en re-lesing aldri kan avvike fra det som faktisk gikk ut.
+      parameters:
+        - name: brevtype
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Brevtype"
+        - name: personId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Brevet som PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/IkkeFunnet"
 
   /api/vandel/formaal:
     get:
@@ -2322,55 +2841,151 @@ components:
                 $ref: "#/components/schemas/Feil"
     Portalpreferanser:
       type: object
-      required: [personId, ferdigstilt, kategorier, tilgjengeligeKategorier, mock, syntetisk]
+      required: [personId, ferdigstilt, grupper, tilgjengeligeGrupper, mock, syntetisk]
       properties:
         personId: { type: string }
         ferdigstilt: { type: boolean }
-        kategorier:
+        grupper:
           type: array
           uniqueItems: true
+          description: Interessegruppene innbyggeren har valgt, ikke kommunens kategorier.
           items: { type: string }
-        tilgjengeligeKategorier:
+        rullestol:
+          type: boolean
+          description: Utelatt når innbyggeren ikke har svart. Utelatt er ikke false.
+        teleslynge:
+          type: boolean
+          description: Utelatt når innbyggeren ikke har svart. Utelatt er ikke false.
+        tilgjengeligeGrupper:
           type: array
           uniqueItems: true
-          items: { type: string }
+          description: >
+            Gruppene hun kan velge mellom, med teksten hun leser. Kategoriene de
+            peker på blir med vilje ikke med ut: en innbygger skal ikke spørres om
+            hvilken tjenestekategori et tilbud er sortert under.
+          items:
+            type: object
+            required: [verdi, label]
+            properties:
+              verdi: { type: string }
+              label: { type: string }
         oppdatert:
           type: string
           format: date-time
         mock: { type: boolean, const: true }
         syntetisk: { type: boolean, const: true }
+    Portalrangertilbud:
+      type: object
+      description: >
+        Ett skåret tilbud, med det katalogen har om det. Skåren og kodene kommer
+        fra rangerTilbud - se Seniorforslagsrad, som er den samme raden uten
+        visningsfeltene. `score` er null når et hardt krav stengte tilbudet.
+      required: [aktivitetId, tilbudId, navn, kategori, beskrivelse, tilbyder, status,
+        score, begrunnelseskoder, tilbyderId, former, tilrettelegging, tidspunkter,
+        steder, paameldingKreves, kontakt]
+      properties:
+        aktivitetId: { type: string }
+        tilbudId: { type: string }
+        navn: { type: string }
+        kategori: { type: string }
+        beskrivelse: { type: string }
+        tilbyder: { type: string }
+        status: { type: string }
+        score:
+          type: [integer, "null"]
+        begrunnelseskoder:
+          type: array
+          items:
+            $ref: "#/components/schemas/Begrunnelseskode"
+        tilbudsnavn:
+          type: string
+          description: Tilbudets eget navn, når det heter noe annet enn aktiviteten.
+        tilbyderId: { type: string }
+        former:
+          type: array
+          items: { type: string }
+        tilrettelegging:
+          type: array
+          items: { type: string }
+        tidspunkter:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalTidspunkt"
+        steder:
+          type: array
+          items:
+            type: object
+            required: [navn]
+            properties:
+              navn: { type: string }
+              rolle: { type: string }
+              adresse: { type: string }
+              postnummer: { type: string }
+              poststed: { type: string }
+        pris:
+          type: object
+          required: [type]
+          properties:
+            type: { type: string }
+            beloepKr: { type: number }
+            kursBeloepKr: { type: number }
+            annetBeloepKr: { type: number }
+            beskrivelse: { type: string }
+        paameldingKreves: { type: boolean }
+        kontakt: { type: object, additionalProperties: true }
+        tilgjengelighet:
+          type: object
+          description: >
+            Utelatt felt betyr ikke oppgitt, som ikke er det samme som false.
+          properties:
+            rullestol: { type: boolean }
+            teleslynge: { type: boolean }
     PortaltilbudRespons:
       type: object
-      required: [personId, alder, portalTilgjengelig, kommunenavn, kommunenummer, schemaVersjon, aktiviteter, andreAktiviteter, tilbydere, preferanserValgt, valgteKategorier, valgtAktivitet, mock, syntetisk]
+      required: [personId, alder, portalTilgjengelig, aldersgrense, kommunenavn, kommunenummer,
+        schemaVersjon, profil, antallVurdert, anbefalte, andre, utelukkede, valgtTilbud,
+        preferanserValgt, mock, syntetisk]
       properties:
         personId: { type: string }
         alder: { type: integer }
         portalTilgjengelig: { type: boolean }
+        aldersgrense:
+          type: integer
+          description: Aldersgrensen ordningen setter, lest av data/tjenestetilbud.json.
         kommunenavn: { type: string }
         kommunenummer: { type: string }
         schemaVersjon: { type: integer }
-        aktiviteter:
-          type: array
-          items:
-            $ref: "#/components/schemas/PortalSenioraktivitet"
-        andreAktiviteter:
-          type: array
-          description: Alderstilpassede aktiviteter utenfor kategoriene innbyggeren har valgt.
-          items:
-            $ref: "#/components/schemas/PortalSenioraktivitet"
-        tilbydere:
-          type: array
-          items:
-            $ref: "#/components/schemas/PortalTilbyder"
-        preferanserValgt: { type: boolean }
-        valgteKategorier:
-          type: array
-          uniqueItems: true
-          items: { type: string }
-        valgtAktivitet:
+        profil:
+          description: Null når portalen ikke er tilgjengelig - da skåres ingenting.
           oneOf:
-            - $ref: "#/components/schemas/PortalSenioraktivitet"
+            - $ref: "#/components/schemas/Seniorprofil"
             - type: "null"
+        antallVurdert:
+          type: integer
+          description: Summen av anbefalte, andre og utelukkede før påmeldte tas ut.
+        anbefalte:
+          type: array
+          description: Tilbudene som traff en interessegruppe innbyggeren valgte.
+          items:
+            $ref: "#/components/schemas/Portalrangertilbud"
+        andre:
+          type: array
+          description: Resten av tilbudene hun kan møte på. De skjules ikke fordi de ikke traff.
+          items:
+            $ref: "#/components/schemas/Portalrangertilbud"
+        utelukkede:
+          type: array
+          description: >
+            Tilbud et hardt krav stengte. De blir stående, med koden som sier
+            hvorfor: en innbygger som bruker rullestol har krav på å få vite at
+            turgruppen finnes, framfor at den forsvinner uten spor.
+          items:
+            $ref: "#/components/schemas/Portalrangertilbud"
+        valgtTilbud:
+          oneOf:
+            - $ref: "#/components/schemas/Portalrangertilbud"
+            - type: "null"
+        preferanserValgt: { type: boolean }
         mock: { type: boolean, const: true }
         syntetisk: { type: boolean, const: true }
     Portalregistrering:
@@ -2745,7 +3360,11 @@ components:
       enum: [SMS, EPOST, INGEN]
     Varseltype:
       type: string
-      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning]
+      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning, portal-kunngjoring]
+    Brevtype:
+      type: string
+      description: Hvilket av de to brevene i varsel-brev-veiviseren dette er.
+      enum: [aapning, oppfolging]
     Varselgrunn:
       type: string
       description: Bare satt når kanalen er INGEN.

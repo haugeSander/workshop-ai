@@ -628,6 +628,50 @@ paths:
           $ref: "#/components/responses/ManglerToken"
         "403":
           $ref: "#/components/responses/ManglerHjemmel"
+
+  /fiks/varselkanal:
+    get:
+      summary: Kanalen et varsel ville gått på, uten å sende noe
+      security:
+        - maskinporten: [ks:fiks:varsel]
+      description: >
+        Samme avgjørelse som POST /fiks/varsler tar som en bivirkning av å sende -
+        denne svarer på den uten den bivirkningen, og uten å skrive en rad i
+        utboksen. Til en fane som må vite om noen hører til SMS- eller
+        brevsporet, uten at det å spørre selv skal se ut som et forsøk på å
+        varsle.
+      parameters:
+        - name: fnr
+          in: query
+          required: true
+          description: Fødselsnummer. Slås opp i kontaktregisteret her.
+          example: "12818800078"
+          schema: { type: string }
+      responses:
+        "200":
+          description: Kanalen avgjørelsen ville landet på
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kanal:
+                    $ref: "#/components/schemas/Varselkanal"
+                  grunn:
+                    $ref: "#/components/schemas/Varselgrunn"
+                  syntetisk:
+                    type: boolean
+        "400":
+          description: fnr mangler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feil"
+        "401":
+          $ref: "#/components/responses/ManglerToken"
+        "403":
+          $ref: "#/components/responses/ManglerHjemmel"
+
   /fiks/meldinger:
     post:
       summary: Legg en melding i innbyggerens innboks
@@ -1767,7 +1811,7 @@ components:
         Hva varselet er. Typen avgjør ikke kanalen, men den står i loggen: «hvem
         fikk et uanmodet varsel» og «hvem ble minnet på noe hun meldte seg på» er
         to spørsmål med to hjemler.
-      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning]
+      enum: [tilbud-finnes, paamelding-bekreftet, paaminnelse, avlysning, portal-kunngjoring]
     Varselgrunn:
       type: string
       description: >
